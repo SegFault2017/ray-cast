@@ -1,8 +1,9 @@
-import { Detail, ActionPanel, Action, showToast, Toast, Icon, confirmAlert, Alert, Clipboard } from "@raycast/api";
+import { Detail, ActionPanel, Action, showToast, Toast, Icon, confirmAlert, Alert } from "@raycast/api";
 import { useEffect, useState } from "react";
 import { loadGraph, deleteGraph } from "../lib/storage/graph-storage";
 import { buildGraphFromData } from "../lib/graph/builder";
 import { renderGraphASCII, renderMatrixASCII } from "../lib/visualization/ascii-renderer";
+import { generateGraphImage, getGraphvizInstallInstructions } from "../lib/visualization/graphviz";
 import { type GraphData } from "../lib/types/graph";
 
 interface GraphDetailProps {
@@ -13,12 +14,29 @@ interface GraphDetailProps {
 export function GraphDetail({ graphId, onDelete }: GraphDetailProps) {
   const [graphData, setGraphData] = useState<GraphData | undefined>();
   const [loading, setLoading] = useState(true);
+  const [imagePath, setImagePath] = useState<string | undefined>();
+  const [graphvizError, setGraphvizError] = useState<string | undefined>();
 
   useEffect(() => {
     async function fetchGraph() {
       try {
         const data = await loadGraph(graphId);
         setGraphData(data);
+
+        // Generate visualization
+        if (data) {
+          const graph = buildGraphFromData(data);
+          const result = await generateGraphImage(graph, {
+            layout: graph.nodeCount > 20 ? "sfdp" : "dot",
+            showWeights: data.config.weighted,
+          });
+
+          if (result.success && result.imagePath) {
+            setImagePath(result.imagePath);
+          } else if (result.error) {
+            setGraphvizError(result.error);
+          }
+        }
       } catch (error) {
         await showToast({
           style: Toast.Style.Failure,
@@ -62,46 +80,16 @@ export function GraphDetail({ graphId, onDelete }: GraphDetailProps) {
     }
   }
 
-  async function handleCopyEdges() {
-    if (!graphData) return;
-
-    const graph = buildGraphFromData(graphData);
-    const edges = graph.getEdges();
-    const edgeStrings = edges.map((e) => {
-      const connector = graphData.config.directed ? "->" : "-";
-      const weight = e.weight !== undefined ? `:${e.weight}` : "";
-      return `${e.from}${connector}${e.to}${weight}`;
-    });
-
-    const edgesText = edgeStrings.join(", ");
-
-    await Clipboard.copy(edgesText);
-    await showToast({
-      style: Toast.Style.Success,
-      title: "Copied to Clipboard",
-      message: "Edge list copied",
-    });
-  }
-
   if (loading) {
     return <Detail isLoading={true} />;
   }
 
   if (!graphData) {
-    return (
-      <Detail
-        markdown="# Graph Not Found\n\nThe requested graph could not be loaded."
-        actions={
-          <ActionPanel>
-            <Action.Pop title="Go Back" />
-          </ActionPanel>
-        }
-      />
-    );
+    return <Detail markdown="# Graph Not Found\n\nThe requested graph could not be loaded." />;
   }
 
   const graph = buildGraphFromData(graphData);
-  const markdown = generateMarkdown(graphData, graph);
+  const markdown = generateMarkdown(graphData, graph, imagePath, graphvizError);
 
   return (
     <Detail
@@ -154,7 +142,7 @@ export function GraphDetail({ graphId, onDelete }: GraphDetailProps) {
             icon={Icon.Trash}
             style={Action.Style.Destructive}
             onAction={handleDelete}
-            shortcut={{ modifiers: ["cmd"], key: "delete" }}
+            shortcut={{ modifiers: ["ctrl"], key: "d" }}
           />
         </ActionPanel>
       }
@@ -162,11 +150,26 @@ export function GraphDetail({ graphId, onDelete }: GraphDetailProps) {
   );
 }
 
-function generateMarkdown(graphData: GraphData, graph: ReturnType<typeof buildGraphFromData>): string {
+function generateMarkdown(
+  graphData: GraphData,
+  graph: ReturnType<typeof buildGraphFromData>,
+  imagePath?: string,
+  graphvizError?: string,
+): string {
   let markdown = `# ${graphData.name}\n\n`;
 
   if (graphData.description) {
     markdown += `${graphData.description}\n\n`;
+  }
+
+  // Show visual graph if available
+  if (imagePath) {
+    markdown += "## Graph Visualization\n\n";
+    markdown += `![Graph](file://${imagePath})\n\n`;
+  } else if (graphvizError) {
+    markdown += "## Visualization\n\n";
+    markdown += `⚠️ ${graphvizError}\n\n`;
+    markdown += getGraphvizInstallInstructions() + "\n\n";
   }
 
   markdown += "## Graph Structure\n\n";

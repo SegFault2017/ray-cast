@@ -60,7 +60,7 @@ export default function Command() {
     }
 
     // Create graph data
-    const graphData = graphToData(graph, generateId(), values.name.trim(), values.description.trim() || undefined);
+    const graphData = graphToData(graph, generateId(), values.name.trim(), values.description?.trim() || undefined);
 
     try {
       // Save graph
@@ -155,7 +155,7 @@ export default function Command() {
               }}
             />
             <Action
-              title="Binary Tree (depth 3)"
+              title="Binary Tree (Depth 3)"
               onAction={() => {
                 const edges = loadTemplate("tree");
                 if (edges) handleEdgesChange(edges);
@@ -187,12 +187,6 @@ export default function Command() {
         placeholder="My Graph"
         error={nameError}
         onChange={handleNameChange}
-      />
-
-      <Form.TextArea
-        id="description"
-        title="Description"
-        placeholder="Optional description"
       />
 
       <Form.Separator />

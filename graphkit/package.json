@@ -45,6 +45,7 @@
     }
   ],
   "dependencies": {
+    "@hpcc-js/wasm": "^2.26.3",
     "@raycast/api": "^1.104.1",
     "@raycast/utils": "^1.17.0"
   },
