@@ -1,6 +1,6 @@
 import { Form, ActionPanel, Action, showToast, Toast, useNavigation } from "@raycast/api";
 import { useState } from "react";
-import { buildGraphFromEdges, graphToData, templates } from "./lib/graph/builder";
+import { buildGraphFromEdges, graphToData } from "./lib/graph/builder";
 import { saveGraph } from "./lib/storage/graph-storage";
 import { GraphDetail } from "./components/GraphDetail";
 
@@ -84,47 +84,13 @@ export default function Command() {
   }
 
   function handleEdgesChange(value: string) {
+    void value; // Explicitly ignore parameter
     setEdgesError(undefined);
   }
 
   function handleNameChange(value: string) {
+    void value; // Explicitly ignore parameter
     setNameError(undefined);
-  }
-
-  function loadTemplate(templateName: string) {
-    let graph;
-    const weighted = false;
-
-    switch (templateName) {
-      case "complete":
-        graph = templates.complete(5, weighted);
-        break;
-      case "cycle":
-        graph = templates.cycle(6, weighted);
-        break;
-      case "path":
-        graph = templates.path(5, weighted);
-        break;
-      case "tree":
-        graph = templates.binaryTree(3, weighted);
-        break;
-      case "bipartite":
-        graph = templates.bipartite(3, 3, weighted);
-        break;
-      case "star":
-        graph = templates.star(5, weighted);
-        break;
-      default:
-        return;
-    }
-
-    const edges = graph.getEdges();
-    const edgeStrings = edges.map((e) => {
-      const weight = e.weight !== undefined ? `:${e.weight}` : "";
-      return `${e.from}-${e.to}${weight}`;
-    });
-
-    return edgeStrings.join(", ");
   }
 
   return (
@@ -132,54 +98,10 @@ export default function Command() {
       actions={
         <ActionPanel>
           <Action.SubmitForm title="Create Graph" onSubmit={handleSubmit} />
-          <ActionPanel.Section title="Load Template">
-            <Action
-              title="Complete Graph K5"
-              onAction={() => {
-                const edges = loadTemplate("complete");
-                if (edges) handleEdgesChange(edges);
-              }}
-            />
-            <Action
-              title="Cycle Graph C6"
-              onAction={() => {
-                const edges = loadTemplate("cycle");
-                if (edges) handleEdgesChange(edges);
-              }}
-            />
-            <Action
-              title="Path Graph P5"
-              onAction={() => {
-                const edges = loadTemplate("path");
-                if (edges) handleEdgesChange(edges);
-              }}
-            />
-            <Action
-              title="Binary Tree (Depth 3)"
-              onAction={() => {
-                const edges = loadTemplate("tree");
-                if (edges) handleEdgesChange(edges);
-              }}
-            />
-            <Action
-              title="Bipartite K3,3"
-              onAction={() => {
-                const edges = loadTemplate("bipartite");
-                if (edges) handleEdgesChange(edges);
-              }}
-            />
-            <Action
-              title="Star Graph S5"
-              onAction={() => {
-                const edges = loadTemplate("star");
-                if (edges) handleEdgesChange(edges);
-              }}
-            />
-          </ActionPanel.Section>
         </ActionPanel>
       }
     >
-      <Form.Description text="Create a new graph by entering edges or loading a template." />
+      <Form.Description text="Create a new graph by entering edges." />
 
       <Form.TextField
         id="name"

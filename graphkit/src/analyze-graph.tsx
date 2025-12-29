@@ -1,7 +1,8 @@
-import { List, ActionPanel, Action, Icon, showToast, Toast, Form, Detail, useNavigation } from "@raycast/api";
+import { List, ActionPanel, Action, Icon, showToast, Toast, Form, Detail, useNavigation, confirmAlert, Alert } from "@raycast/api";
 import { useEffect, useState } from "react";
-import { listGraphs } from "./lib/storage/graph-storage";
+import { listGraphs, deleteGraph } from "./lib/storage/graph-storage";
 import { buildGraphFromData } from "./lib/graph/builder";
+import { GraphDetail } from "./components/GraphDetail";
 import { type StoredGraph } from "./lib/types/storage";
 import { type GraphData, type NodeId } from "./lib/types/graph";
 import { calculateMetrics } from "./lib/algorithms/metrics";
@@ -9,14 +10,23 @@ import { bfs, dfs } from "./lib/algorithms/traversal";
 import { findConnectedComponents, isBipartite } from "./lib/algorithms/connected-components";
 import { dijkstra, floydWarshall } from "./lib/algorithms/shortest-path";
 import { kruskal, prim } from "./lib/algorithms/spanning-tree";
+import {
+  isComplete,
+  isCycle,
+  isPath,
+  isStar,
+  isTree,
+  isRegular,
+  checkHamiltonianConditions,
+} from "./lib/algorithms/properties";
 import { renderPathASCII, renderMetricsASCII, renderSpanningTreeASCII } from "./lib/visualization/ascii-renderer";
 
 type AlgorithmType =
   | "metrics"
+  | "properties"
   | "bfs"
   | "dfs"
   | "components"
-  | "bipartite"
   | "dijkstra"
   | "floyd-warshall"
   | "kruskal"
@@ -45,6 +55,35 @@ export default function Command() {
     }
   }
 
+  async function handleDelete(graph: StoredGraph) {
+    if (
+      await confirmAlert({
+        title: "Delete Graph",
+        message: `Are you sure you want to delete "${graph.data.name}"?`,
+        primaryAction: {
+          title: "Delete",
+          style: Alert.ActionStyle.Destructive,
+        },
+      })
+    ) {
+      try {
+        await deleteGraph(graph.id);
+        await showToast({
+          style: Toast.Style.Success,
+          title: "Graph Deleted",
+          message: `"${graph.data.name}" has been deleted`,
+        });
+        await loadGraphs();
+      } catch (error) {
+        await showToast({
+          style: Toast.Style.Failure,
+          title: "Failed to Delete Graph",
+          message: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
+  }
+
   return (
     <List isLoading={loading} searchBarPlaceholder="Select a graph to analyze...">
       {graphs.length === 0 && !loading ? (
@@ -62,7 +101,30 @@ export default function Command() {
             subtitle={`${graph.data.nodes.length} nodes, ${graph.data.edges.length} edges`}
             actions={
               <ActionPanel>
-                <Action.Push title="Select Algorithm" target={<AlgorithmSelector graph={graph.data} />} />
+                <Action.Push
+                  title="Diagnose Graph"
+                  icon={Icon.Checkmark}
+                  target={<AlgorithmResult graph={graph.data} algorithm="properties" />}
+                />
+                <Action.Push
+                  title="Graph Metrics"
+                  icon={Icon.BarChart}
+                  target={<AlgorithmResult graph={graph.data} algorithm="metrics" />}
+                />
+                <Action.Push title="More Algorithms" target={<AlgorithmSelector graph={graph.data} />} />
+                <Action.Push
+                  title="View Details & Visualization"
+                  icon={Icon.Eye}
+                  target={<GraphDetail graphId={graph.id} onDelete={loadGraphs} />}
+                  shortcut={{ modifiers: ["cmd"], key: "v" }}
+                />
+                <Action
+                  title="Delete Graph"
+                  icon={Icon.Trash}
+                  style={Action.Style.Destructive}
+                  onAction={() => handleDelete(graph)}
+                  shortcut={{ modifiers: ["ctrl"], key: "d" }}
+                />
               </ActionPanel>
             }
           />
@@ -74,12 +136,6 @@ export default function Command() {
 
 function AlgorithmSelector({ graph }: { graph: GraphData }) {
   const algorithms = [
-    {
-      id: "metrics" as AlgorithmType,
-      title: "Graph Metrics",
-      subtitle: "Calculate degree, density, diameter, etc.",
-      icon: Icon.BarChart,
-    },
     {
       id: "bfs" as AlgorithmType,
       title: "Breadth-First Search (BFS)",
@@ -96,12 +152,6 @@ function AlgorithmSelector({ graph }: { graph: GraphData }) {
       id: "components" as AlgorithmType,
       title: "Connected Components",
       subtitle: "Find all connected components",
-      icon: Icon.TwoPeople,
-    },
-    {
-      id: "bipartite" as AlgorithmType,
-      title: "Bipartite Check",
-      subtitle: "Check if graph is bipartite",
       icon: Icon.TwoPeople,
     },
     {
@@ -254,6 +304,57 @@ function AlgorithmResult({
           break;
         }
 
+        case "properties": {
+          result = `# Graph Diagnosis\n\n`;
+          result += "## Graph Type Classification\n\n";
+
+          const complete = isComplete(graph);
+          const cycle = isCycle(graph);
+          const path = isPath(graph);
+          const star = isStar(graph);
+          const tree = isTree(graph);
+          const bipartiteResult = isBipartite(graph);
+          const regular = isRegular(graph);
+          const hamiltonian = checkHamiltonianConditions(graph);
+
+          result += "| Property | Status |\n|----------|--------|\n";
+          result += `| **Complete Graph** | ${complete ? "✅ Yes" : "❌ No"} |\n`;
+          result += `| **Cycle Graph** | ${cycle ? "✅ Yes" : "❌ No"} |\n`;
+          result += `| **Path Graph** | ${path ? "✅ Yes" : "❌ No"} |\n`;
+          result += `| **Star Graph** | ${star ? "✅ Yes" : "❌ No"} |\n`;
+          result += `| **Tree** | ${tree ? "✅ Yes" : "❌ No"} |\n`;
+          result += `| **Bipartite** | ${bipartiteResult.isBipartite ? "✅ Yes" : "❌ No"} |\n`;
+          result += `| **Regular Graph** | ${regular.regular ? `✅ Yes (degree ${regular.degree})` : "❌ No"} |\n`;
+
+          result += "\n## Hamiltonian Cycle Analysis\n\n";
+          result += `**Possibility:** ${hamiltonian.isPossible ? "✅ Possible" : "❌ Unlikely"}\n\n`;
+          result += `**Reason:** ${hamiltonian.reason}\n\n`;
+
+          if (bipartiteResult.isBipartite && bipartiteResult.partitions) {
+            result += "## Bipartite Partitions\n\n";
+            result += `**Partition 1:** ${bipartiteResult.partitions[0].join(", ")}\n\n`;
+            result += `**Partition 2:** ${bipartiteResult.partitions[1].join(", ")}\n\n`;
+          }
+
+          result += "## Summary\n\n";
+          const types = [];
+          if (complete) types.push("Complete");
+          if (cycle) types.push("Cycle");
+          if (path) types.push("Path");
+          if (star) types.push("Star");
+          if (tree) types.push("Tree");
+          if (bipartiteResult.isBipartite) types.push("Bipartite");
+          if (regular.regular) types.push(`${regular.degree}-Regular`);
+
+          if (types.length > 0) {
+            result += `This graph is: **${types.join(", ")}**\n`;
+          } else {
+            result += "This graph does not match any special graph types.\n";
+          }
+
+          break;
+        }
+
         case "bfs": {
           if (!params?.startNode) break;
           const { order, steps } = bfs(graph, params.startNode, { recordSteps: true });
@@ -309,20 +410,6 @@ function AlgorithmResult({
             result += `\n## Component ${i + 1}\n\n`;
             result += `Nodes: ${components[i].join(", ")}\n\n`;
             result += `Size: ${components[i].length} nodes\n\n`;
-          }
-          break;
-        }
-
-        case "bipartite": {
-          const bipartiteResult = isBipartite(graph);
-          result = `# Bipartite Check\n\n`;
-          result += `**Is Bipartite:** ${bipartiteResult.isBipartite ? "Yes" : "No"}\n\n`;
-
-          if (bipartiteResult.isBipartite && bipartiteResult.partitions) {
-            result += `## Partition 1\n\n`;
-            result += `Nodes: ${bipartiteResult.partitions[0].join(", ")}\n\n`;
-            result += `## Partition 2\n\n`;
-            result += `Nodes: ${bipartiteResult.partitions[1].join(", ")}\n\n`;
           }
           break;
         }

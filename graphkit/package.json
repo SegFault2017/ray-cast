@@ -30,13 +30,6 @@
       "mode": "view"
     },
     {
-      "name": "saved-graph",
-      "title": "Saved Graph",
-      "subtitle": "List of saved graphs",
-      "description": "Shows a list of saved graph",
-      "mode": "view"
-    },
-    {
       "name": "reference",
       "title": "Reference",
       "subtitle": "Reference",

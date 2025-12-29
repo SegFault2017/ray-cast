@@ -9,45 +9,45 @@ export interface ASCIIOptions {
 /**
  * Render graph as ASCII adjacency list
  */
-export function renderGraphASCII(graph: Graph, options?: ASCIIOptions): string {
-  const showWeights = options?.showWeights ?? graph.isWeighted;
-  const nodes = graph.getNodes().sort();
+// export function renderGraphASCII(graph: Graph, options?: ASCIIOptions): string {
+//   const showWeights = options?.showWeights ?? graph.isWeighted;
+//   const nodes = graph.getNodes().sort();
 
-  if (nodes.length === 0) {
-    return "Empty graph (no nodes)";
-  }
+//   if (nodes.length === 0) {
+//     return "Empty graph (no nodes)";
+//   }
 
-  let output = "";
+//   let output = "";
 
-  // Header
-  output += graph.isDirected ? "Directed Graph\n" : "Undirected Graph\n";
-  output += `Nodes: ${graph.nodeCount}, Edges: ${graph.totalEdgeCount}\n\n`;
+//   // Header
+//   output += graph.isDirected ? "Directed Graph\n" : "Undirected Graph\n";
+//   output += `Nodes: ${graph.nodeCount}, Edges: ${graph.totalEdgeCount}\n\n`;
 
-  // Adjacency list
-  output += "Adjacency List:\n";
-  output += "─".repeat(40) + "\n";
+//   // Adjacency list
+//   output += "Adjacency List:\n";
+//   output += "─".repeat(40) + "\n";
 
-  for (const node of nodes) {
-    const neighbors = graph.getNeighbors(node);
+//   for (const node of nodes) {
+//     const neighbors = graph.getNeighbors(node);
 
-    if (neighbors.length === 0) {
-      output += `${node}: (no edges)\n`;
-    } else {
-      const neighborStr = neighbors
-        .map((n) => {
-          if (showWeights && n.weight !== 1) {
-            return `${n.node}(${n.weight})`;
-          }
-          return String(n.node);
-        })
-        .join(", ");
+//     if (neighbors.length === 0) {
+//       output += `${node}: (no edges)\n`;
+//     } else {
+//       const neighborStr = neighbors
+//         .map((n) => {
+//           if (showWeights && n.weight !== 1) {
+//             return `${n.node}(${n.weight})`;
+//           }
+//           return String(n.node);
+//         })
+//         .join(", ");
 
-      output += `${node}: ${neighborStr}\n`;
-    }
-  }
+//       output += `${node}: ${neighborStr}\n`;
+//     }
+//   }
 
-  return output;
-}
+//   return output;
+// }
 
 /**
  * Render graph metrics as ASCII

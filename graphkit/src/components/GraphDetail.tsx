@@ -2,7 +2,7 @@ import { Detail, ActionPanel, Action, showToast, Toast, Icon, confirmAlert, Aler
 import { useEffect, useState } from "react";
 import { loadGraph, deleteGraph } from "../lib/storage/graph-storage";
 import { buildGraphFromData } from "../lib/graph/builder";
-import { renderGraphASCII, renderMatrixASCII } from "../lib/visualization/ascii-renderer";
+import {  renderMatrixASCII } from "../lib/visualization/ascii-renderer";
 import { generateGraphImage, getGraphvizInstallInstructions } from "../lib/visualization/graphviz";
 import { type GraphData } from "../lib/types/graph";
 
@@ -133,10 +133,6 @@ export function GraphDetail({ graphId, onDelete }: GraphDetailProps) {
               return `${e.from}${connector}${e.to}${weight}`;
             }).join(", ")}
           />
-          <Action.CopyToClipboard
-            title="Copy Adjacency List"
-            content={renderGraphASCII(graph)}
-          />
           <Action
             title="Delete Graph"
             icon={Icon.Trash}
@@ -173,9 +169,9 @@ function generateMarkdown(
   }
 
   markdown += "## Graph Structure\n\n";
-  markdown += "```\n";
-  markdown += renderGraphASCII(graph);
-  markdown += "```\n\n";
+  // markdown += "```\n";
+  // markdown += renderGraphASCII(graph);
+  // markdown += "```\n\n";
 
   // Show adjacency matrix for small graphs
   if (graph.nodeCount <= 10) {
