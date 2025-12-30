@@ -111,6 +111,12 @@ export default function Command() {
         onChange={handleNameChange}
       />
 
+      <Form.TextField
+        id="description"
+        title="Description"
+        placeholder="Optional description of your graph"
+      />
+
       <Form.Separator />
 
       <Form.Dropdown id="graphType" title="Graph Type" defaultValue="undirected">
