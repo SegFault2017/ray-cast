@@ -111,11 +111,7 @@ export default function Command() {
         onChange={handleNameChange}
       />
 
-      <Form.TextField
-        id="description"
-        title="Description"
-        placeholder="Optional description of your graph"
-      />
+      <Form.TextField id="description" title="Description" placeholder="Optional description of your graph" />
 
       <Form.Separator />
 

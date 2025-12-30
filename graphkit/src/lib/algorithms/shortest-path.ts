@@ -26,11 +26,7 @@ class PriorityQueue<T> {
  * Dijkstra's shortest path algorithm
  * Returns shortest path from start to end, or all shortest paths if end is not specified
  */
-export function dijkstra(
-  graph: Graph,
-  start: NodeId,
-  end?: NodeId,
-): PathResult | Map<NodeId, PathResult> {
+export function dijkstra(graph: Graph, start: NodeId, end?: NodeId): PathResult | Map<NodeId, PathResult> {
   const distances = new Map<NodeId, number>();
   const previous = new Map<NodeId, NodeId | null>();
   const pq = new PriorityQueue<NodeId>();
@@ -96,11 +92,7 @@ export function dijkstra(
 /**
  * Reconstruct path from previous map
  */
-function reconstructPath(
-  previous: Map<NodeId, NodeId | null>,
-  start: NodeId,
-  end: NodeId,
-): NodeId[] {
+function reconstructPath(previous: Map<NodeId, NodeId | null>, start: NodeId, end: NodeId): NodeId[] {
   const path: NodeId[] = [];
   let current: NodeId | null = end;
 
@@ -161,11 +153,7 @@ export function floydWarshall(graph: Graph): ShortestPathMatrix {
 /**
  * Reconstruct path from Floyd-Warshall result
  */
-export function reconstructFloydWarshallPath(
-  result: ShortestPathMatrix,
-  from: NodeId,
-  to: NodeId,
-): NodeId[] {
+export function reconstructFloydWarshallPath(result: ShortestPathMatrix, from: NodeId, to: NodeId): NodeId[] {
   const fromIndex = result.nodes.indexOf(from);
   const toIndex = result.nodes.indexOf(to);
 

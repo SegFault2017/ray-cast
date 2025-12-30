@@ -1,5 +1,5 @@
 import { Graph } from "./Graph";
-import { type GraphData, type NodeId } from "../types/graph";
+import { type GraphData } from "../types/graph";
 import { parseEdgeInput } from "./parser";
 
 /**
@@ -24,12 +24,7 @@ export function buildGraphFromData(data: GraphData): Graph {
 /**
  * Convert a Graph instance to GraphData
  */
-export function graphToData(
-  graph: Graph,
-  id: string,
-  name: string,
-  description?: string,
-): GraphData {
+export function graphToData(graph: Graph, id: string, name: string, description?: string): GraphData {
   return {
     id,
     name,

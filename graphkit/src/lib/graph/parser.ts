@@ -26,10 +26,12 @@ export function parseEdgeInput(input: string, options?: ParserOptions): ParseRes
   const warnings: string[] = [];
 
   const assumeDirected = options?.assumeDirected ?? false;
-  const defaultWeight = options?.defaultWeight ?? 1;
 
   // Split by commas, newlines, or semicolons
-  const segments = input.split(/[,;\n]+/).map((s) => s.trim()).filter((s) => s.length > 0);
+  const segments = input
+    .split(/[,;\n]+/)
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0);
 
   if (segments.length === 0) {
     errors.push("No edges provided");
@@ -44,7 +46,7 @@ export function parseEdgeInput(input: string, options?: ParserOptions): ParseRes
     const lineNum = i + 1;
 
     try {
-      const edge = parseEdgeSegment(segment, defaultWeight);
+      const edge = parseEdgeSegment(segment);
 
       if (edge.isDirected !== undefined) {
         if (edge.isDirected) {
@@ -81,7 +83,7 @@ interface ParsedEdge {
 /**
  * Parse a single edge segment
  */
-function parseEdgeSegment(segment: string, defaultWeight: number): ParsedEdge {
+function parseEdgeSegment(segment: string): ParsedEdge {
   // Try to find weight delimiter first (: or =)
   const weightMatch = segment.match(/^(.+?)[:=](.+)$/);
 

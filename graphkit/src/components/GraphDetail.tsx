@@ -2,7 +2,7 @@ import { Detail, ActionPanel, Action, showToast, Toast, Icon, confirmAlert, Aler
 import { useEffect, useState } from "react";
 import { loadGraph, deleteGraph } from "../lib/storage/graph-storage";
 import { buildGraphFromData } from "../lib/graph/builder";
-import {  renderMatrixASCII } from "../lib/visualization/ascii-renderer";
+import { renderMatrixASCII } from "../lib/visualization/ascii-renderer";
 import { generateGraphImage, getGraphvizInstallInstructions } from "../lib/visualization/graphviz";
 import { type GraphData } from "../lib/types/graph";
 
@@ -113,25 +113,22 @@ export function GraphDetail({ graphId, onDelete }: GraphDetailProps) {
             icon={graphData.config.weighted ? Icon.Check : Icon.Xmark}
           />
           <Detail.Metadata.Separator />
-          <Detail.Metadata.Label
-            title="Created"
-            text={new Date(graphData.createdAt).toLocaleDateString()}
-          />
-          <Detail.Metadata.Label
-            title="Updated"
-            text={new Date(graphData.updatedAt).toLocaleDateString()}
-          />
+          <Detail.Metadata.Label title="Created" text={new Date(graphData.createdAt).toLocaleDateString()} />
+          <Detail.Metadata.Label title="Updated" text={new Date(graphData.updatedAt).toLocaleDateString()} />
         </Detail.Metadata>
       }
       actions={
         <ActionPanel>
           <Action.CopyToClipboard
             title="Copy Edges"
-            content={graph.getEdges().map((e) => {
-              const connector = graphData.config.directed ? "->" : "-";
-              const weight = e.weight !== undefined ? `:${e.weight}` : "";
-              return `${e.from}${connector}${e.to}${weight}`;
-            }).join(", ")}
+            content={graph
+              .getEdges()
+              .map((e) => {
+                const connector = graphData.config.directed ? "->" : "-";
+                const weight = e.weight !== undefined ? `:${e.weight}` : "";
+                return `${e.from}${connector}${e.to}${weight}`;
+              })
+              .join(", ")}
           />
           <Action
             title="Delete Graph"

@@ -6,7 +6,7 @@ import { Graph } from "../graph/Graph";
 import { type NodeId } from "../types/graph";
 
 // Store the loaded Graphviz instance
-let graphvizInstance: any = null;
+let graphvizInstance: Awaited<ReturnType<typeof Graphviz.load>> | null = null;
 
 async function getGraphvizInstance() {
   if (!graphvizInstance) {
@@ -47,12 +47,7 @@ export async function checkGraphvizInstalled(): Promise<boolean> {
  * Generate DOT language representation of a graph
  */
 function generateDOT(graph: Graph, options: GraphvizOptions = {}): string {
-  const {
-    highlightNodes = [],
-    highlightEdges = [],
-    showWeights = graph.isWeighted,
-    rankdir = "TB",
-  } = options;
+  const { highlightNodes = [], highlightEdges = [], showWeights = graph.isWeighted, rankdir = "TB" } = options;
 
   const graphType = graph.isDirected ? "digraph" : "graph";
   const edgeOp = graph.isDirected ? "->" : "--";
@@ -76,17 +71,14 @@ function generateDOT(graph: Graph, options: GraphvizOptions = {}): string {
   const seenEdges = new Set<string>();
 
   for (const edge of edges) {
-    const edgeKey = graph.isDirected
-      ? `${edge.from}->${edge.to}`
-      : [edge.from, edge.to].sort().join("-");
+    const edgeKey = graph.isDirected ? `${edge.from}->${edge.to}` : [edge.from, edge.to].sort().join("-");
 
     if (seenEdges.has(edgeKey)) continue;
     seenEdges.add(edgeKey);
 
     const isHighlighted = highlightEdges.some(
       ([from, to]) =>
-        (from === edge.from && to === edge.to) ||
-        (!graph.isDirected && from === edge.to && to === edge.from),
+        (from === edge.from && to === edge.to) || (!graph.isDirected && from === edge.to && to === edge.from),
     );
 
     const color = isHighlighted ? "red" : "black";
@@ -117,14 +109,8 @@ function generateDOT(graph: Graph, options: GraphvizOptions = {}): string {
 /**
  * Generate a graph visualization image using Graphviz WASM
  */
-export async function generateGraphImage(
-  graph: Graph,
-  options: GraphvizOptions = {},
-): Promise<GraphvizResult> {
-  const {
-    layout = "dot",
-    format = "svg",
-  } = options;
+export async function generateGraphImage(graph: Graph, options: GraphvizOptions = {}): Promise<GraphvizResult> {
+  const { layout = "dot", format = "svg" } = options;
 
   try {
     // Get Graphviz WASM instance

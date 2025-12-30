@@ -699,7 +699,11 @@ export default function Command() {
     <List
       searchBarPlaceholder="Search graph theory topics..."
       searchBarAccessory={
-        <List.Dropdown tooltip="Filter by Category" value={selectedCategory} onChange={(value) => setSelectedCategory(value as Category | "all")}>
+        <List.Dropdown
+          tooltip="Filter by Category"
+          value={selectedCategory}
+          onChange={(value) => setSelectedCategory(value as Category | "all")}
+        >
           {categories.map((cat) => (
             <List.Dropdown.Item key={cat.value} value={cat.value} title={cat.title} icon={cat.icon} />
           ))}
@@ -717,7 +721,11 @@ export default function Command() {
             <ActionPanel>
               <Action.Push title="View Details" target={<ReferenceDetail item={item} />} />
               {item.copyContent && (
-                <Action.CopyToClipboard title="Copy Edge List" content={item.copyContent} shortcut={{ modifiers: ["cmd"], key: "c" }} />
+                <Action.CopyToClipboard
+                  title="Copy Edge List"
+                  content={item.copyContent}
+                  shortcut={{ modifiers: ["cmd"], key: "c" }}
+                />
               )}
             </ActionPanel>
           }
@@ -734,7 +742,13 @@ function ReferenceDetail({ item }: { item: ReferenceItem }) {
       actions={
         <ActionPanel>
           <Action.CopyToClipboard title="Copy Content" content={item.content} />
-          {item.copyContent && <Action.CopyToClipboard title="Copy Edge List" content={item.copyContent} shortcut={{ modifiers: ["cmd"], key: "e" }} />}
+          {item.copyContent && (
+            <Action.CopyToClipboard
+              title="Copy Edge List"
+              content={item.copyContent}
+              shortcut={{ modifiers: ["cmd"], key: "e" }}
+            />
+          )}
         </ActionPanel>
       }
     />

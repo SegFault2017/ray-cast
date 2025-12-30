@@ -1,4 +1,16 @@
-import { List, ActionPanel, Action, Icon, showToast, Toast, Form, Detail, useNavigation, confirmAlert, Alert } from "@raycast/api";
+import {
+  List,
+  ActionPanel,
+  Action,
+  Icon,
+  showToast,
+  Toast,
+  Form,
+  Detail,
+  useNavigation,
+  confirmAlert,
+  Alert,
+} from "@raycast/api";
 import { useEffect, useState } from "react";
 import { listGraphs, deleteGraph } from "./lib/storage/graph-storage";
 import { buildGraphFromData } from "./lib/graph/builder";
@@ -209,7 +221,7 @@ function AlgorithmSelector({ graph }: { graph: GraphData }) {
                 />
                 {algorithm.supportsSteps && (
                   <Action.Push
-                    title="View Step-by-Step"
+                    title="View Step-By-Step"
                     icon={Icon.Eye}
                     target={<AlgorithmRunner graph={graph} algorithm={algorithm.id} withSteps={true} />}
                     shortcut={{ modifiers: ["cmd"], key: "s" }}
@@ -223,7 +235,15 @@ function AlgorithmSelector({ graph }: { graph: GraphData }) {
   );
 }
 
-function AlgorithmRunner({ graph, algorithm, withSteps }: { graph: GraphData; algorithm: AlgorithmType; withSteps?: boolean }) {
+function AlgorithmRunner({
+  graph,
+  algorithm,
+  withSteps,
+}: {
+  graph: GraphData;
+  algorithm: AlgorithmType;
+  withSteps?: boolean;
+}) {
   // Algorithms that need parameters
   const needsStartNode = ["bfs", "dfs", "dijkstra", "prim"];
 
@@ -235,7 +255,15 @@ function AlgorithmRunner({ graph, algorithm, withSteps }: { graph: GraphData; al
   return <AlgorithmResult graph={graph} algorithm={algorithm} withSteps={withSteps} />;
 }
 
-function ParameterForm({ graph, algorithm, withSteps }: { graph: GraphData; algorithm: AlgorithmType; withSteps?: boolean }) {
+function ParameterForm({
+  graph,
+  algorithm,
+  withSteps,
+}: {
+  graph: GraphData;
+  algorithm: AlgorithmType;
+  withSteps?: boolean;
+}) {
   const nodes = graph.nodes.map((n: { id: NodeId }) => String(n.id));
   const { push } = useNavigation();
 
@@ -612,7 +640,7 @@ function AlgorithmStepper({
   markdown += `\n## Graph Structure\n\n`;
   markdown += `**Adjacency List:**\n\n`;
   for (const node of allNodes) {
-    const neighbors = graph.getNeighbors(node).map(n => String(n.node));
+    const neighbors = graph.getNeighbors(node).map((n) => String(n.node));
     const nodeStr = String(node);
     let nodeLabel = `${node}`;
     if (nodeStr === String(step.node)) {
