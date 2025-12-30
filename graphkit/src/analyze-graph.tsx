@@ -32,6 +32,13 @@ type AlgorithmType =
   | "kruskal"
   | "prim";
 
+interface AlgorithmStep {
+  step: number;
+  action: string;
+  node: NodeId;
+  from?: NodeId;
+}
+
 export default function Command() {
   const [graphs, setGraphs] = useState<StoredGraph[]>([]);
   const [loading, setLoading] = useState(true);
@@ -141,12 +148,14 @@ function AlgorithmSelector({ graph }: { graph: GraphData }) {
       title: "Breadth-First Search (BFS)",
       subtitle: "Traverse graph level by level",
       icon: Icon.Circle,
+      supportsSteps: true,
     },
     {
       id: "dfs" as AlgorithmType,
       title: "Depth-First Search (DFS)",
       subtitle: "Traverse graph depth-first",
       icon: Icon.Circle,
+      supportsSteps: true,
     },
     {
       id: "components" as AlgorithmType,
@@ -198,6 +207,14 @@ function AlgorithmSelector({ graph }: { graph: GraphData }) {
                   title="Run Algorithm"
                   target={<AlgorithmRunner graph={graph} algorithm={algorithm.id} />}
                 />
+                {algorithm.supportsSteps && (
+                  <Action.Push
+                    title="View Step-by-Step"
+                    icon={Icon.Eye}
+                    target={<AlgorithmRunner graph={graph} algorithm={algorithm.id} withSteps={true} />}
+                    shortcut={{ modifiers: ["cmd"], key: "s" }}
+                  />
+                )}
               </ActionPanel>
             }
           />
@@ -206,24 +223,24 @@ function AlgorithmSelector({ graph }: { graph: GraphData }) {
   );
 }
 
-function AlgorithmRunner({ graph, algorithm }: { graph: GraphData; algorithm: AlgorithmType }) {
+function AlgorithmRunner({ graph, algorithm, withSteps }: { graph: GraphData; algorithm: AlgorithmType; withSteps?: boolean }) {
   // Algorithms that need parameters
   const needsStartNode = ["bfs", "dfs", "dijkstra", "prim"];
 
   if (needsStartNode.includes(algorithm)) {
-    return <ParameterForm graph={graph} algorithm={algorithm} />;
+    return <ParameterForm graph={graph} algorithm={algorithm} withSteps={withSteps} />;
   }
 
   // Run algorithms that don't need parameters immediately
-  return <AlgorithmResult graph={graph} algorithm={algorithm} />;
+  return <AlgorithmResult graph={graph} algorithm={algorithm} withSteps={withSteps} />;
 }
 
-function ParameterForm({ graph, algorithm }: { graph: GraphData; algorithm: AlgorithmType }) {
+function ParameterForm({ graph, algorithm, withSteps }: { graph: GraphData; algorithm: AlgorithmType; withSteps?: boolean }) {
   const nodes = graph.nodes.map((n: { id: NodeId }) => String(n.id));
   const { push } = useNavigation();
 
   function handleSubmit(values: { startNode: string; endNode?: string }) {
-    push(<AlgorithmResult graph={graph} algorithm={algorithm} params={values} />);
+    push(<AlgorithmResult graph={graph} algorithm={algorithm} params={values} withSteps={withSteps} />);
   }
 
   return (
@@ -258,17 +275,25 @@ function AlgorithmResult({
   graph: graphData,
   algorithm,
   params,
+  withSteps,
 }: {
   graph: GraphData;
   algorithm: AlgorithmType;
   params?: { startNode?: string; endNode?: string };
+  withSteps?: boolean;
 }) {
   const [markdown, setMarkdown] = useState<string>("");
   const [loading, setLoading] = useState(true);
+  const [steps, setSteps] = useState<AlgorithmStep[]>([]);
 
   useEffect(() => {
     runAlgorithm();
   }, []);
+
+  // If in step mode, show stepper interface
+  if (withSteps && !loading && steps.length > 0) {
+    return <AlgorithmStepper graphData={graphData} algorithm={algorithm} steps={steps} params={params} />;
+  }
 
   async function runAlgorithm() {
     try {
@@ -357,22 +382,28 @@ function AlgorithmResult({
 
         case "bfs": {
           if (!params?.startNode) break;
-          const { order, steps } = bfs(graph, params.startNode, { recordSteps: true });
+          const bfsResult = bfs(graph, params.startNode, { recordSteps: true });
+
+          if (withSteps && bfsResult.steps) {
+            setSteps(bfsResult.steps);
+            return;
+          }
+
           result = `# Breadth-First Search\n\n`;
           result += `**Start Node:** ${params.startNode}\n\n`;
-          result += `**Traversal Order:** ${order.join(" → ")}\n\n`;
-          result += `**Nodes Visited:** ${order.length}\n\n`;
+          result += `**Traversal Order:** ${bfsResult.order.join(" → ")}\n\n`;
+          result += `**Nodes Visited:** ${bfsResult.order.length}\n\n`;
 
-          if (steps && steps.length > 0) {
+          if (bfsResult.steps && bfsResult.steps.length > 0) {
             result += "## Step-by-Step\n\n";
-            for (const step of steps.slice(0, 20)) {
+            for (const step of bfsResult.steps.slice(0, 20)) {
               // Limit to first 20 steps
               result += `**Step ${step.step}:** ${step.action} node ${step.node}`;
               if (step.from) result += ` from ${step.from}`;
               result += "\n\n";
             }
-            if (steps.length > 20) {
-              result += `... and ${steps.length - 20} more steps\n\n`;
+            if (bfsResult.steps.length > 20) {
+              result += `... and ${bfsResult.steps.length - 20} more steps\n\n`;
             }
           }
           break;
@@ -380,21 +411,27 @@ function AlgorithmResult({
 
         case "dfs": {
           if (!params?.startNode) break;
-          const { order, steps } = dfs(graph, params.startNode, { recordSteps: true });
+          const dfsResult = dfs(graph, params.startNode, { recordSteps: true });
+
+          if (withSteps && dfsResult.steps) {
+            setSteps(dfsResult.steps);
+            return;
+          }
+
           result = `# Depth-First Search\n\n`;
           result += `**Start Node:** ${params.startNode}\n\n`;
-          result += `**Traversal Order:** ${order.join(" → ")}\n\n`;
-          result += `**Nodes Visited:** ${order.length}\n\n`;
+          result += `**Traversal Order:** ${dfsResult.order.join(" → ")}\n\n`;
+          result += `**Nodes Visited:** ${dfsResult.order.length}\n\n`;
 
-          if (steps && steps.length > 0) {
+          if (dfsResult.steps && dfsResult.steps.length > 0) {
             result += "## Step-by-Step\n\n";
-            for (const step of steps.slice(0, 20)) {
+            for (const step of dfsResult.steps.slice(0, 20)) {
               result += `**Step ${step.step}:** ${step.action} node ${step.node}`;
               if (step.from) result += ` from ${step.from}`;
               result += "\n\n";
             }
-            if (steps.length > 20) {
-              result += `... and ${steps.length - 20} more steps\n\n`;
+            if (dfsResult.steps.length > 20) {
+              result += `... and ${dfsResult.steps.length - 20} more steps\n\n`;
             }
           }
           break;
@@ -513,6 +550,111 @@ function AlgorithmResult({
       actions={
         <ActionPanel>
           <Action.CopyToClipboard title="Copy Results" content={markdown} />
+        </ActionPanel>
+      }
+    />
+  );
+}
+
+function AlgorithmStepper({
+  graphData,
+  algorithm,
+  steps,
+  params,
+}: {
+  graphData: GraphData;
+  algorithm: AlgorithmType;
+  steps: AlgorithmStep[];
+  params?: { startNode?: string; endNode?: string };
+}) {
+  const [currentStep, setCurrentStep] = useState(0);
+  const graph = buildGraphFromData(graphData);
+
+  const step = steps[currentStep];
+  const visited = new Set<string>();
+
+  // Build visited set up to current step
+  for (let i = 0; i <= currentStep; i++) {
+    if (steps[i].action === "visit") {
+      visited.add(String(steps[i].node));
+    }
+  }
+
+  const algorithmName = algorithm === "bfs" ? "Breadth-First Search" : "Depth-First Search";
+
+  let markdown = `# ${algorithmName} - Step ${currentStep + 1} of ${steps.length}\n\n`;
+  markdown += `**Start Node:** ${params?.startNode}\n\n`;
+  markdown += `---\n\n`;
+  markdown += `## Current Step\n\n`;
+  markdown += `**Action:** ${step.action} node **${step.node}**`;
+  if (step.from) {
+    markdown += ` from **${step.from}**`;
+  }
+  markdown += `\n\n`;
+
+  markdown += `## Node States\n\n`;
+  markdown += `| Node | Status |\n|------|--------|\n`;
+
+  const allNodes = graph.getNodes().sort();
+  for (const node of allNodes) {
+    const nodeStr = String(node);
+    let status = "";
+    if (nodeStr === String(step.node)) {
+      status = "🔵 Current";
+    } else if (visited.has(nodeStr)) {
+      status = "✅ Visited";
+    } else {
+      status = "⚪️ Unvisited";
+    }
+    markdown += `| ${node} | ${status} |\n`;
+  }
+
+  markdown += `\n## Graph Structure\n\n`;
+  markdown += `**Adjacency List:**\n\n`;
+  for (const node of allNodes) {
+    const neighbors = graph.getNeighbors(node).map(n => String(n.node));
+    const nodeStr = String(node);
+    let nodeLabel = `${node}`;
+    if (nodeStr === String(step.node)) {
+      nodeLabel = `**${node}** 🔵`;
+    } else if (visited.has(nodeStr)) {
+      nodeLabel = `${node} ✅`;
+    }
+    markdown += `- ${nodeLabel}: [${neighbors.join(", ")}]\n`;
+  }
+
+  markdown += `\n---\n\n`;
+  markdown += `**Progress:** ${currentStep + 1}/${steps.length} (${Math.round(((currentStep + 1) / steps.length) * 100)}%)\n`;
+
+  return (
+    <Detail
+      markdown={markdown}
+      actions={
+        <ActionPanel>
+          <Action
+            title="Next Step"
+            icon={Icon.ArrowRight}
+            onAction={() => setCurrentStep(Math.min(currentStep + 1, steps.length - 1))}
+            shortcut={{ modifiers: ["cmd"], key: "arrowRight" }}
+          />
+          <Action
+            title="Previous Step"
+            icon={Icon.ArrowLeft}
+            onAction={() => setCurrentStep(Math.max(currentStep - 1, 0))}
+            shortcut={{ modifiers: ["cmd"], key: "arrowLeft" }}
+          />
+          <Action
+            title="First Step"
+            icon={Icon.ArrowLeftCircle}
+            onAction={() => setCurrentStep(0)}
+            shortcut={{ modifiers: ["cmd", "shift"], key: "arrowLeft" }}
+          />
+          <Action
+            title="Last Step"
+            icon={Icon.ArrowRightCircle}
+            onAction={() => setCurrentStep(steps.length - 1)}
+            shortcut={{ modifiers: ["cmd", "shift"], key: "arrowRight" }}
+          />
         </ActionPanel>
       }
     />
