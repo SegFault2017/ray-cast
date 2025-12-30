@@ -32,6 +32,7 @@ import {
   checkHamiltonianConditions,
 } from "./lib/algorithms/properties";
 import { renderPathASCII, renderMetricsASCII, renderSpanningTreeASCII } from "./lib/visualization/ascii-renderer";
+import { generateGraphImage } from "./lib/visualization/graphviz";
 
 type AlgorithmType =
   | "metrics"
@@ -596,6 +597,8 @@ function AlgorithmStepper({
   params?: { startNode?: string; endNode?: string };
 }) {
   const [currentStep, setCurrentStep] = useState(0);
+  const [imagePath, setImagePath] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
   const graph = buildGraphFromData(graphData);
 
   const step = steps[currentStep];
@@ -608,11 +611,58 @@ function AlgorithmStepper({
     }
   }
 
+  // Generate graph visualization when step changes
+  useEffect(() => {
+    async function generateVisualization() {
+      setLoading(true);
+      try {
+        const nodeColors = new Map<NodeId, string>();
+
+        // Color nodes based on their state
+        for (const node of graph.getNodes()) {
+          const nodeStr = String(node);
+          if (nodeStr === String(step.node)) {
+            nodeColors.set(node, "orange"); // Current node
+          } else if (visited.has(nodeStr)) {
+            nodeColors.set(node, "lightgreen"); // Visited nodes
+          } else {
+            nodeColors.set(node, "lightgray"); // Unvisited nodes
+          }
+        }
+
+        const result = await generateGraphImage(graph, {
+          nodeColors,
+          layout: "dot",
+          showWeights: graphData.config.weighted,
+        });
+
+        if (result.success && result.imagePath) {
+          setImagePath(result.imagePath);
+        }
+      } catch (error) {
+        console.error("Failed to generate graph visualization:", error);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    generateVisualization();
+  }, [currentStep, graph, graphData.config.weighted, step.node, visited]);
+
   const algorithmName = algorithm === "bfs" ? "Breadth-First Search" : "Depth-First Search";
 
   let markdown = `# ${algorithmName} - Step ${currentStep + 1} of ${steps.length}\n\n`;
   markdown += `**Start Node:** ${params?.startNode}\n\n`;
   markdown += `---\n\n`;
+
+  // Add graph visualization
+  if (imagePath && !loading) {
+    markdown += `## Graph Visualization\n\n`;
+    markdown += `![Graph](file://${imagePath})\n\n`;
+    markdown += `🟠 Current Node  🟢 Visited  ⚪️ Unvisited\n\n`;
+    markdown += `---\n\n`;
+  }
+
   markdown += `## Current Step\n\n`;
   markdown += `**Action:** ${step.action} node **${step.node}**`;
   if (step.from) {
@@ -656,6 +706,7 @@ function AlgorithmStepper({
 
   return (
     <Detail
+      isLoading={loading}
       markdown={markdown}
       actions={
         <ActionPanel>

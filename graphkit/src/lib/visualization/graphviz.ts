@@ -20,6 +20,7 @@ export interface GraphvizOptions {
   format?: "svg" | "dot" | "json" | "xdot";
   highlightNodes?: NodeId[];
   highlightEdges?: Array<[NodeId, NodeId]>;
+  nodeColors?: Map<NodeId, string>;
   showWeights?: boolean;
   rankdir?: "TB" | "LR" | "BT" | "RL";
 }
@@ -47,7 +48,13 @@ export async function checkGraphvizInstalled(): Promise<boolean> {
  * Generate DOT language representation of a graph
  */
 function generateDOT(graph: Graph, options: GraphvizOptions = {}): string {
-  const { highlightNodes = [], highlightEdges = [], showWeights = graph.isWeighted, rankdir = "TB" } = options;
+  const {
+    highlightNodes = [],
+    highlightEdges = [],
+    nodeColors,
+    showWeights = graph.isWeighted,
+    rankdir = "TB",
+  } = options;
 
   const graphType = graph.isDirected ? "digraph" : "graph";
   const edgeOp = graph.isDirected ? "->" : "--";
@@ -59,8 +66,14 @@ function generateDOT(graph: Graph, options: GraphvizOptions = {}): string {
 
   // Add nodes
   for (const node of graph.getNodes()) {
-    const isHighlighted = highlightNodes.includes(node);
-    const fillColor = isHighlighted ? "yellow" : "lightblue";
+    let fillColor = "lightblue";
+
+    if (nodeColors && nodeColors.has(node)) {
+      fillColor = nodeColors.get(node)!;
+    } else if (highlightNodes.includes(node)) {
+      fillColor = "yellow";
+    }
+
     dot += `  "${node}" [fillcolor="${fillColor}"];\n`;
   }
 
