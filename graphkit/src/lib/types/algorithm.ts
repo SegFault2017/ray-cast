@@ -10,10 +10,41 @@ export interface TraversalStep {
   visited: NodeId[];
 }
 
+export interface DijkstraStep {
+  step: number;
+  action: "process" | "relax" | "skip";
+  currentNode: NodeId;
+  neighbor?: NodeId;
+  oldDistance?: number;
+  newDistance?: number;
+  distances: Map<NodeId, number>;
+  visited: Set<NodeId>;
+}
+
+export interface FloydWarshallStep {
+  step: number;
+  k: number;
+  i: number;
+  j: number;
+  action: "update" | "skip";
+  oldDistance: number;
+  newDistance?: number;
+  via?: NodeId;
+  matrix: number[][];
+}
+
+export interface ComponentStep {
+  step: number;
+  action: "start_component" | "visit_node";
+  node: NodeId;
+  componentIndex: number;
+  visited: Set<NodeId>;
+}
+
 export interface PathResult {
   path: NodeId[];
   distance: number;
-  steps?: TraversalStep[];
+  steps?: TraversalStep[] | DijkstraStep[];
 }
 
 export interface ShortestPathMatrix {

@@ -1,18 +1,37 @@
 import { Graph } from "../graph/Graph";
 import { type NodeId } from "../types/graph";
-import { type ComponentResult, type BipartiteResult } from "../types/algorithm";
+import { type ComponentResult, type BipartiteResult, type ComponentStep } from "../types/algorithm";
 
 /**
  * Find all connected components using DFS
  */
-export function findConnectedComponents(graph: Graph): ComponentResult & { isConnected: boolean } {
+export function findConnectedComponents(
+  graph: Graph,
+  options?: { recordSteps?: boolean },
+): ComponentResult & { isConnected: boolean; steps?: ComponentStep[] } {
   const visited = new Set<NodeId>();
   const components: NodeId[][] = [];
+  const steps: ComponentStep[] = [];
+  let stepCount = 0;
 
   for (const node of graph.getNodes()) {
     if (!visited.has(node)) {
       const component: NodeId[] = [];
-      dfsVisit(graph, node, visited, component);
+
+      if (options?.recordSteps) {
+        steps.push({
+          step: stepCount++,
+          action: "start_component",
+          node,
+          componentIndex: components.length,
+          visited: new Set(visited),
+        });
+      }
+
+      dfsVisit(graph, node, visited, component, components.length, options?.recordSteps ? steps : undefined, stepCount);
+      if (options?.recordSteps) {
+        stepCount = steps.length;
+      }
       components.push(component);
     }
   }
@@ -21,19 +40,38 @@ export function findConnectedComponents(graph: Graph): ComponentResult & { isCon
     components,
     count: components.length,
     isConnected: components.length <= 1,
+    steps: options?.recordSteps ? steps : undefined,
   };
 }
 
 /**
  * Helper function for DFS traversal
  */
-function dfsVisit(graph: Graph, node: NodeId, visited: Set<NodeId>, component: NodeId[]) {
+function dfsVisit(
+  graph: Graph,
+  node: NodeId,
+  visited: Set<NodeId>,
+  component: NodeId[],
+  componentIndex: number,
+  steps?: ComponentStep[],
+  stepCount = 0,
+) {
   visited.add(node);
   component.push(node);
 
+  if (steps) {
+    steps.push({
+      step: stepCount++,
+      action: "visit_node",
+      node,
+      componentIndex,
+      visited: new Set(visited),
+    });
+  }
+
   for (const { node: neighbor } of graph.getNeighbors(node)) {
     if (!visited.has(neighbor)) {
-      dfsVisit(graph, neighbor, visited, component);
+      dfsVisit(graph, neighbor, visited, component, componentIndex, steps, steps ? steps.length : 0);
     }
   }
 }

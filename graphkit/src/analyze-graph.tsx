@@ -15,6 +15,7 @@ import { useEffect, useState } from "react";
 import { listGraphs, deleteGraph } from "./lib/storage/graph-storage";
 import { buildGraphFromData } from "./lib/graph/builder";
 import { GraphDetail } from "./components/GraphDetail";
+import { AlgorithmStepper } from "./components/AlgorithmStepper";
 import { type StoredGraph } from "./lib/types/storage";
 import { type GraphData, type NodeId } from "./lib/types/graph";
 import { calculateMetrics } from "./lib/algorithms/metrics";
@@ -32,7 +33,13 @@ import {
   checkHamiltonianConditions,
 } from "./lib/algorithms/properties";
 import { renderPathASCII, renderMetricsASCII, renderSpanningTreeASCII } from "./lib/visualization/ascii-renderer";
-import { generateGraphImage } from "./lib/visualization/graphviz";
+import type {
+  TraversalStep,
+  DijkstraStep,
+  FloydWarshallStep,
+  ComponentStep,
+  SpanningTreeResult,
+} from "./lib/types/algorithm";
 
 type AlgorithmType =
   | "metrics"
@@ -45,12 +52,12 @@ type AlgorithmType =
   | "kruskal"
   | "prim";
 
-interface AlgorithmStep {
-  step: number;
-  action: string;
-  node: NodeId;
-  from?: NodeId;
-}
+type AlgorithmStep =
+  | TraversalStep
+  | DijkstraStep
+  | FloydWarshallStep
+  | ComponentStep
+  | NonNullable<SpanningTreeResult["steps"]>[number];
 
 export default function Command() {
   const [graphs, setGraphs] = useState<StoredGraph[]>([]);
@@ -175,18 +182,21 @@ function AlgorithmSelector({ graph }: { graph: GraphData }) {
       title: "Connected Components",
       subtitle: "Find all connected components",
       icon: Icon.TwoPeople,
+      supportsSteps: true,
     },
     {
       id: "dijkstra" as AlgorithmType,
       title: "Dijkstra's Shortest Path",
       subtitle: "Find shortest paths from a start node",
       icon: Icon.Pin,
+      supportsSteps: true,
     },
     {
       id: "floyd-warshall" as AlgorithmType,
       title: "Floyd-Warshall",
       subtitle: "All-pairs shortest paths",
       icon: Icon.Globe,
+      supportsSteps: true,
     },
     {
       id: "kruskal" as AlgorithmType,
@@ -194,6 +204,7 @@ function AlgorithmSelector({ graph }: { graph: GraphData }) {
       subtitle: "Minimum spanning tree",
       icon: Icon.Tree,
       requiresUndirected: true,
+      supportsSteps: true,
     },
     {
       id: "prim" as AlgorithmType,
@@ -201,6 +212,7 @@ function AlgorithmSelector({ graph }: { graph: GraphData }) {
       subtitle: "Minimum spanning tree",
       icon: Icon.Tree,
       requiresUndirected: true,
+      supportsSteps: true,
     },
   ];
 
@@ -467,22 +479,36 @@ function AlgorithmResult({
         }
 
         case "components": {
-          const { components, count, isConnected } = findConnectedComponents(graph);
-          result = `# Connected Components\n\n`;
-          result += `**Is Connected:** ${isConnected ? "Yes" : "No"}\n\n`;
-          result += `**Number of Components:** ${count}\n\n`;
+          const compResult = findConnectedComponents(graph, { recordSteps: true });
 
-          for (let i = 0; i < components.length; i++) {
+          if (withSteps && compResult.steps) {
+            setSteps(compResult.steps);
+            return;
+          }
+
+          result = `# Connected Components\n\n`;
+          result += `**Is Connected:** ${compResult.isConnected ? "Yes" : "No"}\n\n`;
+          result += `**Number of Components:** ${compResult.count}\n\n`;
+
+          for (let i = 0; i < compResult.components.length; i++) {
             result += `\n## Component ${i + 1}\n\n`;
-            result += `Nodes: ${components[i].join(", ")}\n\n`;
-            result += `Size: ${components[i].length} nodes\n\n`;
+            result += `Nodes: ${compResult.components[i].join(", ")}\n\n`;
+            result += `Size: ${compResult.components[i].length} nodes\n\n`;
           }
           break;
         }
 
         case "dijkstra": {
           if (!params?.startNode) break;
-          const dijkstraResult = dijkstra(graph, params.startNode, params.endNode || undefined);
+          const dijkstraResult = dijkstra(graph, params.startNode, params.endNode || undefined, { recordSteps: true });
+
+          if (withSteps && !params.endNode && typeof dijkstraResult === "object" && "steps" in dijkstraResult) {
+            const singleResult = dijkstraResult as { path: NodeId[]; distance: number; steps?: unknown[] };
+            if (singleResult.steps) {
+              setSteps(singleResult.steps as AlgorithmStep[]);
+              return;
+            }
+          }
 
           result = `# Dijkstra's Shortest Path\n\n`;
           result += `**Start Node:** ${params.startNode}\n\n`;
@@ -510,7 +536,13 @@ function AlgorithmResult({
         }
 
         case "floyd-warshall": {
-          const fwResult = floydWarshall(graph);
+          const fwResult = floydWarshall(graph, { recordSteps: true });
+
+          if (withSteps && fwResult.steps) {
+            setSteps(fwResult.steps);
+            return;
+          }
+
           result = `# Floyd-Warshall All-Pairs Shortest Paths\n\n`;
           result += "## Distance Matrix\n\n";
 
@@ -538,7 +570,13 @@ function AlgorithmResult({
         }
 
         case "kruskal": {
-          const mst = kruskal(graph, { recordSteps: false });
+          const mst = kruskal(graph, { recordSteps: true });
+
+          if (withSteps && mst.steps) {
+            setSteps(mst.steps);
+            return;
+          }
+
           result = `# Kruskal's Minimum Spanning Tree\n\n`;
           result += "```\n";
           result += renderSpanningTreeASCII(mst.edges, mst.totalWeight, graph.isWeighted);
@@ -547,7 +585,13 @@ function AlgorithmResult({
         }
 
         case "prim": {
-          const mst = prim(graph, params?.startNode, { recordSteps: false });
+          const mst = prim(graph, params?.startNode, { recordSteps: true });
+
+          if (withSteps && mst.steps) {
+            setSteps(mst.steps);
+            return;
+          }
+
           result = `# Prim's Minimum Spanning Tree\n\n`;
           if (params?.startNode) {
             result += `**Start Node:** ${params.startNode}\n\n`;
@@ -579,161 +623,6 @@ function AlgorithmResult({
       actions={
         <ActionPanel>
           <Action.CopyToClipboard title="Copy Results" content={markdown} />
-        </ActionPanel>
-      }
-    />
-  );
-}
-
-function AlgorithmStepper({
-  graphData,
-  algorithm,
-  steps,
-  params,
-}: {
-  graphData: GraphData;
-  algorithm: AlgorithmType;
-  steps: AlgorithmStep[];
-  params?: { startNode?: string; endNode?: string };
-}) {
-  const [currentStep, setCurrentStep] = useState(0);
-  const [imagePath, setImagePath] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-  const graph = buildGraphFromData(graphData);
-
-  const step = steps[currentStep];
-  const visited = new Set<string>();
-
-  // Build visited set up to current step
-  for (let i = 0; i <= currentStep; i++) {
-    if (steps[i].action === "visit") {
-      visited.add(String(steps[i].node));
-    }
-  }
-
-  // Generate graph visualization when step changes
-  useEffect(() => {
-    async function generateVisualization() {
-      setLoading(true);
-      try {
-        const nodeColors = new Map<NodeId, string>();
-
-        // Color nodes based on their state
-        for (const node of graph.getNodes()) {
-          const nodeStr = String(node);
-          if (nodeStr === String(step.node)) {
-            nodeColors.set(node, "orange"); // Current node
-          } else if (visited.has(nodeStr)) {
-            nodeColors.set(node, "lightgreen"); // Visited nodes
-          } else {
-            nodeColors.set(node, "lightgray"); // Unvisited nodes
-          }
-        }
-
-        const result = await generateGraphImage(graph, {
-          nodeColors,
-          layout: "dot",
-          showWeights: graphData.config.weighted,
-        });
-
-        if (result.success && result.imagePath) {
-          setImagePath(result.imagePath);
-        }
-      } catch (error) {
-        console.error("Failed to generate graph visualization:", error);
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    generateVisualization();
-  }, [currentStep, graph, graphData.config.weighted, step.node, visited]);
-
-  const algorithmName = algorithm === "bfs" ? "Breadth-First Search" : "Depth-First Search";
-
-  let markdown = `# ${algorithmName} - Step ${currentStep + 1} of ${steps.length}\n\n`;
-  markdown += `**Start Node:** ${params?.startNode}\n\n`;
-  markdown += `---\n\n`;
-
-  // Add graph visualization
-  if (imagePath && !loading) {
-    markdown += `## Graph Visualization\n\n`;
-    markdown += `![Graph](file://${imagePath})\n\n`;
-    markdown += `🟠 Current Node  🟢 Visited  ⚪️ Unvisited\n\n`;
-    markdown += `---\n\n`;
-  }
-
-  markdown += `## Current Step\n\n`;
-  markdown += `**Action:** ${step.action} node **${step.node}**`;
-  if (step.from) {
-    markdown += ` from **${step.from}**`;
-  }
-  markdown += `\n\n`;
-
-  markdown += `## Node States\n\n`;
-  markdown += `| Node | Status |\n|------|--------|\n`;
-
-  const allNodes = graph.getNodes().sort();
-  for (const node of allNodes) {
-    const nodeStr = String(node);
-    let status = "";
-    if (nodeStr === String(step.node)) {
-      status = "🔵 Current";
-    } else if (visited.has(nodeStr)) {
-      status = "✅ Visited";
-    } else {
-      status = "⚪️ Unvisited";
-    }
-    markdown += `| ${node} | ${status} |\n`;
-  }
-
-  markdown += `\n## Graph Structure\n\n`;
-  markdown += `**Adjacency List:**\n\n`;
-  for (const node of allNodes) {
-    const neighbors = graph.getNeighbors(node).map((n) => String(n.node));
-    const nodeStr = String(node);
-    let nodeLabel = `${node}`;
-    if (nodeStr === String(step.node)) {
-      nodeLabel = `**${node}** 🔵`;
-    } else if (visited.has(nodeStr)) {
-      nodeLabel = `${node} ✅`;
-    }
-    markdown += `- ${nodeLabel}: [${neighbors.join(", ")}]\n`;
-  }
-
-  markdown += `\n---\n\n`;
-  markdown += `**Progress:** ${currentStep + 1}/${steps.length} (${Math.round(((currentStep + 1) / steps.length) * 100)}%)\n`;
-
-  return (
-    <Detail
-      isLoading={loading}
-      markdown={markdown}
-      actions={
-        <ActionPanel>
-          <Action
-            title="Next Step"
-            icon={Icon.ArrowRight}
-            onAction={() => setCurrentStep(Math.min(currentStep + 1, steps.length - 1))}
-            shortcut={{ modifiers: ["cmd"], key: "arrowRight" }}
-          />
-          <Action
-            title="Previous Step"
-            icon={Icon.ArrowLeft}
-            onAction={() => setCurrentStep(Math.max(currentStep - 1, 0))}
-            shortcut={{ modifiers: ["cmd"], key: "arrowLeft" }}
-          />
-          <Action
-            title="First Step"
-            icon={Icon.ArrowLeftCircle}
-            onAction={() => setCurrentStep(0)}
-            shortcut={{ modifiers: ["cmd", "shift"], key: "arrowLeft" }}
-          />
-          <Action
-            title="Last Step"
-            icon={Icon.ArrowRightCircle}
-            onAction={() => setCurrentStep(steps.length - 1)}
-            shortcut={{ modifiers: ["cmd", "shift"], key: "arrowRight" }}
-          />
         </ActionPanel>
       }
     />

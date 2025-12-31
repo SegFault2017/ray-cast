@@ -1,6 +1,11 @@
 import { Graph } from "../graph/Graph";
 import { type NodeId } from "../types/graph";
-import { type PathResult, type ShortestPathMatrix } from "../types/algorithm";
+import {
+  type PathResult,
+  type ShortestPathMatrix,
+  type DijkstraStep,
+  type FloydWarshallStep,
+} from "../types/algorithm";
 
 /**
  * Priority Queue implementation for Dijkstra's algorithm
@@ -26,10 +31,18 @@ class PriorityQueue<T> {
  * Dijkstra's shortest path algorithm
  * Returns shortest path from start to end, or all shortest paths if end is not specified
  */
-export function dijkstra(graph: Graph, start: NodeId, end?: NodeId): PathResult | Map<NodeId, PathResult> {
+export function dijkstra(
+  graph: Graph,
+  start: NodeId,
+  end?: NodeId,
+  options?: { recordSteps?: boolean },
+): PathResult | Map<NodeId, PathResult> {
   const distances = new Map<NodeId, number>();
   const previous = new Map<NodeId, NodeId | null>();
   const pq = new PriorityQueue<NodeId>();
+  const visited = new Set<NodeId>();
+  const steps: DijkstraStep[] = [];
+  let stepCount = 0;
 
   // Initialize distances
   for (const node of graph.getNodes()) {
@@ -44,6 +57,19 @@ export function dijkstra(graph: Graph, start: NodeId, end?: NodeId): PathResult 
     const current = pq.dequeue()!;
     const currentDist = distances.get(current)!;
 
+    if (visited.has(current)) continue;
+    visited.add(current);
+
+    if (options?.recordSteps) {
+      steps.push({
+        step: stepCount++,
+        action: "process",
+        currentNode: current,
+        distances: new Map(distances),
+        visited: new Set(visited),
+      });
+    }
+
     // If we reached the end node, we can stop early
     if (end !== undefined && current === end) {
       break;
@@ -54,11 +80,35 @@ export function dijkstra(graph: Graph, start: NodeId, end?: NodeId): PathResult 
 
     for (const { node: neighbor, weight } of graph.getNeighbors(current)) {
       const newDist = currentDist + weight;
+      const oldDist = distances.get(neighbor)!;
 
-      if (newDist < distances.get(neighbor)!) {
+      if (newDist < oldDist) {
         distances.set(neighbor, newDist);
         previous.set(neighbor, current);
         pq.enqueue(neighbor, newDist);
+
+        if (options?.recordSteps) {
+          steps.push({
+            step: stepCount++,
+            action: "relax",
+            currentNode: current,
+            neighbor,
+            oldDistance: oldDist,
+            newDistance: newDist,
+            distances: new Map(distances),
+            visited: new Set(visited),
+          });
+        }
+      } else if (options?.recordSteps) {
+        steps.push({
+          step: stepCount++,
+          action: "skip",
+          currentNode: current,
+          neighbor,
+          oldDistance: oldDist,
+          distances: new Map(distances),
+          visited: new Set(visited),
+        });
       }
     }
   }
@@ -70,6 +120,7 @@ export function dijkstra(graph: Graph, start: NodeId, end?: NodeId): PathResult 
     return {
       path,
       distance: distances.get(end)!,
+      steps: options?.recordSteps ? steps : undefined,
     };
   } else {
     // All shortest paths from start
@@ -113,9 +164,14 @@ function reconstructPath(previous: Map<NodeId, NodeId | null>, start: NodeId, en
 /**
  * Floyd-Warshall algorithm for all-pairs shortest paths
  */
-export function floydWarshall(graph: Graph): ShortestPathMatrix {
+export function floydWarshall(
+  graph: Graph,
+  options?: { recordSteps?: boolean },
+): ShortestPathMatrix & { steps?: FloydWarshallStep[] } {
   const { nodes, matrix } = graph.toAdjacencyMatrix();
   const n = nodes.length;
+  const steps: FloydWarshallStep[] = [];
+  let stepCount = 0;
 
   // Initialize next matrix for path reconstruction
   const next: (NodeId | null)[][] = Array(n)
@@ -135,9 +191,36 @@ export function floydWarshall(graph: Graph): ShortestPathMatrix {
   for (let k = 0; k < n; k++) {
     for (let i = 0; i < n; i++) {
       for (let j = 0; j < n; j++) {
-        if (matrix[i][k] + matrix[k][j] < matrix[i][j]) {
-          matrix[i][j] = matrix[i][k] + matrix[k][j];
+        const oldDist = matrix[i][j];
+        const newDist = matrix[i][k] + matrix[k][j];
+
+        if (newDist < oldDist) {
+          matrix[i][j] = newDist;
           next[i][j] = next[i][k];
+
+          if (options?.recordSteps) {
+            steps.push({
+              step: stepCount++,
+              k,
+              i,
+              j,
+              action: "update",
+              oldDistance: oldDist,
+              newDistance: newDist,
+              via: nodes[k],
+              matrix: matrix.map((row) => [...row]),
+            });
+          }
+        } else if (options?.recordSteps && oldDist !== Infinity) {
+          steps.push({
+            step: stepCount++,
+            k,
+            i,
+            j,
+            action: "skip",
+            oldDistance: oldDist,
+            matrix: matrix.map((row) => [...row]),
+          });
         }
       }
     }
@@ -147,6 +230,7 @@ export function floydWarshall(graph: Graph): ShortestPathMatrix {
     distances: matrix,
     next,
     nodes,
+    steps: options?.recordSteps ? steps : undefined,
   };
 }
 
