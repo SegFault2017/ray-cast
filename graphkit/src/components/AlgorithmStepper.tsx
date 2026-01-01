@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Detail, ActionPanel, Action, Icon } from "@raycast/api";
 import { buildGraphFromData } from "../lib/graph/builder";
-import type { GraphData } from "../lib/types/graph";
+import { generateGraphImage } from "../lib/visualization/graphviz";
+import type { GraphData, NodeId } from "../lib/types/graph";
 import type {
   TraversalStep,
   DijkstraStep,
@@ -37,9 +38,87 @@ interface AlgorithmStepperProps {
 
 export function AlgorithmStepper({ graphData, algorithm, steps, params }: AlgorithmStepperProps) {
   const [currentStep, setCurrentStep] = useState(0);
+  const [imagePath, setImagePath] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
   const graph = buildGraphFromData(graphData);
 
   const step = steps[currentStep];
+
+  // Generate graph visualization when step changes
+  useEffect(() => {
+    async function generateVisualization() {
+      setLoading(true);
+      try {
+        const nodeColors = new Map<NodeId, string>();
+
+        // Determine node colors based on algorithm type and step
+        if ("node" in step && "visited" in step && !("componentIndex" in step)) {
+          // BFS/DFS Traversal
+          const traversalStep = step as TraversalStep;
+          const visited = new Set(Array.from(traversalStep.visited).map(String));
+
+          for (const node of graph.getNodes()) {
+            const nodeStr = String(node);
+            if (nodeStr === String(traversalStep.node)) {
+              nodeColors.set(node, "orange");
+            } else if (visited.has(nodeStr)) {
+              nodeColors.set(node, "lightgreen");
+            } else {
+              nodeColors.set(node, "lightgray");
+            }
+          }
+        } else if ("currentNode" in step) {
+          // Dijkstra
+          const dijkstraStep = step as DijkstraStep;
+
+          for (const node of graph.getNodes()) {
+            if (String(node) === String(dijkstraStep.currentNode)) {
+              nodeColors.set(node, "orange");
+            } else if (dijkstraStep.visited.has(node)) {
+              nodeColors.set(node, "lightgreen");
+            } else {
+              nodeColors.set(node, "lightgray");
+            }
+          }
+        } else if ("componentIndex" in step && "node" in step) {
+          // Connected Components
+          const compStep = step as ComponentStep;
+
+          for (const node of graph.getNodes()) {
+            const nodeStr = String(node);
+            if (nodeStr === String(compStep.node)) {
+              nodeColors.set(node, "orange");
+            } else if (compStep.visited.has(node)) {
+              nodeColors.set(node, "lightgreen");
+            } else {
+              nodeColors.set(node, "lightgray");
+            }
+          }
+        } else {
+          // Default coloring for other algorithms (MST, Floyd-Warshall)
+          for (const node of graph.getNodes()) {
+            nodeColors.set(node, "lightblue");
+          }
+        }
+
+        const result = await generateGraphImage(graph, {
+          nodeColors,
+          layout: "dot",
+          showWeights: graphData.config.weighted,
+        });
+
+        if (result.success && result.imagePath) {
+          setImagePath(result.imagePath);
+        }
+      } catch (error) {
+        console.error("Failed to generate graph visualization:", error);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    generateVisualization();
+  }, [currentStep, graph, graphData.config.weighted, step]);
 
   // Get algorithm name
   const algorithmNames: Record<AlgorithmType, string> = {
@@ -61,6 +140,14 @@ export function AlgorithmStepper({ graphData, algorithm, steps, params }: Algori
     markdown += `**Start Node:** ${params.startNode}\n\n`;
   }
   markdown += `---\n\n`;
+
+  // Add graph visualization
+  if (imagePath && !loading) {
+    markdown += `## Graph Visualization\n\n`;
+    markdown += `![Graph](file://${imagePath})\n\n`;
+    markdown += `🟠 Current Node  🟢 Visited  ⚪️ Unvisited\n\n`;
+    markdown += `---\n\n`;
+  }
 
   // Render step details based on algorithm type
   if ("node" in step && "visited" in step && !("componentIndex" in step)) {
@@ -187,6 +274,7 @@ export function AlgorithmStepper({ graphData, algorithm, steps, params }: Algori
 
   return (
     <Detail
+      isLoading={loading}
       markdown={markdown}
       actions={
         <ActionPanel>
