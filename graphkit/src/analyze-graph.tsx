@@ -138,7 +138,11 @@ export default function Command() {
                   icon={Icon.BarChart}
                   target={<AlgorithmResult graph={graph.data} algorithm="metrics" />}
                 />
-                <Action.Push title="More Algorithms" target={<AlgorithmSelector graph={graph.data} />} />
+                <Action.Push
+                  title="Algorithms"
+                  target={<AlgorithmSelector graph={graph.data} />}
+                  shortcut={{ modifiers: ["cmd"], key: "m" }}
+                />
                 <Action.Push
                   title="View Details & Visualization"
                   icon={Icon.Eye}
@@ -284,15 +288,29 @@ function ParameterForm({
     push(<AlgorithmResult graph={graph} algorithm={algorithm} params={values} withSteps={withSteps} />);
   }
 
+  const algorithmName = algorithm.toUpperCase();
+  const submitTitle = withSteps ? "Start Stepper" : "Run Algorithm";
+  const formDescription = withSteps
+    ? `Configure ${algorithmName} for interactive stepper`
+    : `Select parameters for ${algorithmName}`;
+
   return (
     <Form
       actions={
         <ActionPanel>
-          <Action.SubmitForm title="Run Algorithm" onSubmit={handleSubmit} />
+          <Action.SubmitForm title={submitTitle} icon={withSteps ? Icon.Eye : Icon.Play} onSubmit={handleSubmit} />
         </ActionPanel>
       }
     >
-      <Form.Description text={`Select parameters for ${algorithm.toUpperCase()}`} />
+      <Form.Description text={formDescription} />
+
+      {withSteps && (
+        <>
+          <Form.Separator />
+          <Form.Description text="Step-by-step mode will show the algorithm execution with graph visualization at each step. Use arrow keys to navigate through steps." />
+          <Form.Separator />
+        </>
+      )}
 
       <Form.Dropdown id="startNode" title="Start Node" defaultValue={nodes[0]}>
         {nodes.map((node: string) => (
@@ -307,6 +325,10 @@ function ParameterForm({
             <Form.Dropdown.Item key={node} value={node} title={node} />
           ))}
         </Form.Dropdown>
+      )}
+
+      {algorithm === "dijkstra" && withSteps && (
+        <Form.Description text="Note: Step-by-step visualization is only available when computing paths to all nodes (no end node selected)." />
       )}
     </Form>
   );
