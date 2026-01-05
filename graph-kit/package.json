@@ -28,13 +28,6 @@
       "subtitle": "Analyzing a graph",
       "description": "Analyzing a graph",
       "mode": "view"
-    },
-    {
-      "name": "reference",
-      "title": "Reference",
-      "subtitle": "Reference",
-      "description": "Graph knowledge",
-      "mode": "view"
     }
   ],
   "dependencies": {
