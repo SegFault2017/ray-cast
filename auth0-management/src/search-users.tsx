@@ -99,7 +99,7 @@ export default function SearchUsers() {
       searchBarAccessory={
         <List.Dropdown tooltip="Switch Tenant" value={tenantId} onChange={handleTenantChange}>
           {tenants.map((t) => (
-            <List.Dropdown.Item key={t.id} title={`${t.domain || "not configured"}`} value={t.id} />
+            <List.Dropdown.Item key={t.id} title={`${t.name + " " + t.environment || "not configured"}`} value={t.id} />
           ))}
         </List.Dropdown>
       }
@@ -119,7 +119,7 @@ export default function SearchUsers() {
           subtitle={user.name}
           accessories={[
             tenant
-              ? { tag: { value: tenant.name.toUpperCase(), color: tenant.color } }
+              ? { tag: { value: tenant.environment, color: tenant.color } }
               : {},
             { text: `Logins: ${user.logins_count ?? 0}` },
             { text: formatDate(user.last_login), tooltip: "Last login" },

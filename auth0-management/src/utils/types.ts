@@ -42,15 +42,14 @@ export interface Tenant {
   color: Color;
 }
 
-export interface LegacyPreferences {
-  activeTenant: string;
-  devDomain: string;
-  devClientId: string;
-  devClientSecret: string;
-  stagingDomain: string;
-  stagingClientId: string;
-  stagingClientSecret: string;
-  prodDomain: string;
-  prodClientId: string;
-  prodClientSecret: string;
+export interface Organization {
+  id: string;
+  name: string;
+  display_name?: string;
+  branding?: {
+    logo_url?: string;
+    colors?: { primary?: string; page_background?: string };
+  };
+  metadata?: Record<string, string>;
 }
+

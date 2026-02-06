@@ -34,7 +34,7 @@ export async function getTenants(): Promise<Tenant[]> {
   }
 }
 
-export async function saveTenants(tenants: Tenant[]): Promise<void> {
+async function saveTenants(tenants: Tenant[]): Promise<void> {
   await LocalStorage.setItem(TENANTS_KEY, JSON.stringify(tenants));
 }
 

@@ -3,7 +3,6 @@ import { useCachedState } from "@raycast/utils";
 import { useEffect, useRef } from "react";
 import { Tenant } from "./types";
 import { getTenants, isTenantConfigured } from "./tenant-storage";
-import { migrateTenants } from "./migrate-tenants";
 
 export function useActiveTenant() {
   const [tenantId, setTenantId] = useCachedState<string>("activeTenantId", "");
@@ -23,7 +22,6 @@ export function useActiveTenant() {
 
     (async () => {
       setIsLoading(true);
-      await migrateTenants();
       const loaded = await loadTenants();
 
       if (!tenantId || !loaded.find((t) => t.id === tenantId)) {
