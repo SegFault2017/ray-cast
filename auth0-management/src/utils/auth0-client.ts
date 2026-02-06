@@ -1,5 +1,5 @@
 import { ManagementClient } from "auth0";
-import { TenantConfig, User } from "./types";
+import { Organization, TenantConfig, User } from "./types";
 
 // Cache ManagementClient instances per domain (SDK handles token management)
 const clientCache: Map<string, ManagementClient> = new Map();
@@ -36,4 +36,10 @@ export async function searchUsers(config: TenantConfig, searchTerm: string): Pro
     per_page: 20,
   });
   return response.data as unknown as User[];
+}
+
+export async function listOrganizations(config: TenantConfig, take = 50): Promise<Organization[]> {
+  const client = getClient(config);
+  const response = await client.organizations.list({ take });
+  return response.data as unknown as Organization[];
 }

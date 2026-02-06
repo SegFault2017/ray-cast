@@ -3,7 +3,7 @@
   "name": "auth0-management",
   "title": "Auth0 Management",
   "description": "Search and manage Auth0 users across multiple tenants",
-  "icon": "extension-icon.png",
+  "icon": "auth0-96.png",
   "author": "ray_tan",
   "platforms": [
     "macOS",
@@ -26,6 +26,13 @@
       "title": "Switch Tenant",
       "subtitle": "Auth0",
       "description": "View and switch between Auth0 tenants",
+      "mode": "view"
+    },
+    {
+      "name": "view-organizations",
+      "title": "View Organizations",
+      "subtitle": "Auth0",
+      "description": "Browse Auth0 organizations",
       "mode": "view"
     }
   ],
