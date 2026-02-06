@@ -20,6 +20,13 @@
       "subtitle": "Auth0",
       "description": "Search Auth0 users by name, email, or user ID",
       "mode": "view"
+    },
+    {
+      "name": "switch-tenant",
+      "title": "Switch Tenant",
+      "subtitle": "Auth0",
+      "description": "View and switch between Auth0 tenants",
+      "mode": "view"
     }
   ],
   "preferences": [

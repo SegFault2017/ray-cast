@@ -2,9 +2,9 @@ import { getPreferenceValues } from "@raycast/api";
 import { Preferences, TenantConfig, TenantKey } from "./types";
 
 const TENANT_LABELS: Record<TenantKey, string> = {
-  dev: "Development",
+  dev: "Dev",
   staging: "Staging",
-  prod: "Production",
+  prod: "Prod",
 };
 
 export function getPreferences(): Preferences {
@@ -46,20 +46,4 @@ export function getActiveTenantConfig(): TenantConfig {
   return getTenantConfig(getActiveTenantKey());
 }
 
-export function validateActiveTenant(): { isValid: boolean; error?: string } {
-  const tenantKey = getActiveTenantKey();
-  const config = getActiveTenantConfig();
-
-  if (!config.domain) {
-    return { isValid: false, error: `Please configure ${TENANT_LABELS[tenantKey]} domain in preferences` };
-  }
-  if (!config.clientId) {
-    return { isValid: false, error: `Please configure ${TENANT_LABELS[tenantKey]} Client ID in preferences` };
-  }
-  if (!config.clientSecret) {
-    return { isValid: false, error: `Please configure ${TENANT_LABELS[tenantKey]} Client Secret in preferences` };
-  }
-
-  return { isValid: true };
-}
 

@@ -1,8 +1,9 @@
 import { List, ActionPanel, Action, showToast, Toast, Icon, Color, Image } from "@raycast/api";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useCachedState } from "@raycast/utils";
 import { searchUsers } from "./utils/auth0-client";
-import { getActiveTenantConfig, getActiveTenantKey, validateActiveTenant } from "./utils/preferences";
+import { getTenantConfig } from "./utils/preferences";
+import { useActiveTenant } from "./utils/use-active-tenant";
 import { User, TenantKey } from "./utils/types";
 import UserDetail from "./components/UserDetail";
 
@@ -11,6 +12,12 @@ const TENANT_COLORS: Record<TenantKey, Color> = {
   staging: Color.Orange,
   prod: Color.Red,
 };
+
+const ALL_TENANTS: { key: TenantKey; label: string }[] = [
+  { key: "dev", label: "Development" },
+  { key: "staging", label: "Staging" },
+  { key: "prod", label: "Production" },
+];
 
 function formatDate(dateString?: string): string {
   if (!dateString) return "Never";
@@ -23,44 +30,55 @@ export default function SearchUsers() {
   const [users, setUsers] = useCachedState<User[]>("users", []);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { tenantKey, tenantConfig, switchTenant, isTenantConfigured } = useActiveTenant();
+  const prevTenantKey = useRef(tenantKey);
 
-  const tenantKey = getActiveTenantKey();
-  const config = getActiveTenantConfig();
+  const doSearch = useCallback(
+    async (term: string) => {
+      const config = getTenantConfig(tenantKey);
 
-  const doSearch = useCallback(async (term: string) => {
-    const validation = validateActiveTenant();
-    if (!validation.isValid) {
-      setError(validation.error || "Tenant not configured");
-      return;
-    }
+      if (!isTenantConfigured(config)) {
+        setError(`Please configure ${config.name} credentials in preferences`);
+        return;
+      }
 
-    setIsLoading(true);
-    setError(null);
+      setIsLoading(true);
+      setError(null);
 
-    try {
-      const currentConfig = getActiveTenantConfig();
-      const results = await searchUsers(currentConfig, term);
-      setUsers(results);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to search users";
-      setError(message);
-      showToast({
-        style: Toast.Style.Failure,
-        title: "Search Failed",
-        message,
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
+      try {
+        const results = await searchUsers(config, term);
+        setUsers(results);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Failed to search users";
+        setError(message);
+        showToast({
+          style: Toast.Style.Failure,
+          title: "Search Failed",
+          message,
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [tenantKey],
+  );
 
   useEffect(() => {
+    if (prevTenantKey.current !== tenantKey) {
+      setUsers([]);
+      prevTenantKey.current = tenantKey;
+    }
+
     const timer = setTimeout(() => {
       doSearch(searchText);
     }, 300);
 
     return () => clearTimeout(timer);
-  }, [searchText, doSearch]);
+  }, [searchText, doSearch, tenantKey]);
+
+  const handleTenantChange = (newKey: string) => {
+    switchTenant(newKey as TenantKey);
+  };
 
   if (error && !users.length) {
     return (
@@ -77,8 +95,17 @@ export default function SearchUsers() {
       searchBarPlaceholder="Search by name, email, or user ID..."
       navigationTitle="Search Users"
       searchBarAccessory={
-        <List.Dropdown tooltip="Current Tenant" value={tenantKey} onChange={() => {}}>
-          <List.Dropdown.Item title={`${config.name} (${config.domain || "not configured"})`} value={tenantKey} />
+        <List.Dropdown tooltip="Switch Tenant" value={tenantKey} onChange={handleTenantChange}>
+          {ALL_TENANTS.map(({ key, label }) => {
+            const config = getTenantConfig(key);
+            return (
+              <List.Dropdown.Item
+                key={key}
+                title={`${label} (${config.domain || "not configured"})`}
+                value={key}
+              />
+            );
+          })}
         </List.Dropdown>
       }
     >
@@ -106,7 +133,7 @@ export default function SearchUsers() {
               <Action.Push
                 title="View Details"
                 icon={Icon.Eye}
-                target={<UserDetail user={user} domain={config.domain} />}
+                target={<UserDetail user={user} domain={tenantConfig.domain} />}
               />
               <Action.CopyToClipboard
                 title="Copy User ID"
@@ -120,7 +147,7 @@ export default function SearchUsers() {
               />
               <Action.OpenInBrowser
                 title="Open in Auth0 Dashboard"
-                url={`https://${config.domain}/dashboard/tenant/users/${encodeURIComponent(user.user_id)}`}
+                url={`https://${tenantConfig.domain}/dashboard/tenant/users/${encodeURIComponent(user.user_id)}`}
                 shortcut={{ modifiers: ["cmd"], key: "o" }}
               />
               <Action
