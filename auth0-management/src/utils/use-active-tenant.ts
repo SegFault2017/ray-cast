@@ -1,41 +1,65 @@
 import { showToast, Toast } from "@raycast/api";
 import { useCachedState } from "@raycast/utils";
-import { getActiveTenantKey, getTenantConfig } from "./preferences";
-import { TenantConfig, TenantKey } from "./types";
-
-const TENANT_LABELS: Record<TenantKey, string> = {
-  dev: "Development",
-  staging: "Staging",
-  prod: "Production",
-};
-
-function isTenantConfigured(config: TenantConfig): boolean {
-  return Boolean(config.domain && config.clientId && config.clientSecret);
-}
+import { useEffect, useRef } from "react";
+import { Tenant } from "./types";
+import { getTenants, isTenantConfigured } from "./tenant-storage";
+import { migrateTenants } from "./migrate-tenants";
 
 export function useActiveTenant() {
-  const [tenantKey, setTenantKey] = useCachedState<TenantKey>("activeTenantKey", getActiveTenantKey());
-  const tenantConfig = getTenantConfig(tenantKey);
+  const [tenantId, setTenantId] = useCachedState<string>("activeTenantId", "");
+  const [tenants, setTenants] = useCachedState<Tenant[]>("tenants", []);
+  const [isLoading, setIsLoading] = useCachedState<boolean>("tenantsLoading", true);
+  const initialized = useRef(false);
 
-  const switchTenant = (key: TenantKey) => {
-    const config = getTenantConfig(key);
+  const loadTenants = async () => {
+    const loaded = await getTenants();
+    setTenants(loaded);
+    return loaded;
+  };
 
-    if (!isTenantConfigured(config)) {
+  useEffect(() => {
+    if (initialized.current) return;
+    initialized.current = true;
+
+    (async () => {
+      setIsLoading(true);
+      await migrateTenants();
+      const loaded = await loadTenants();
+
+      if (!tenantId || !loaded.find((t) => t.id === tenantId)) {
+        const firstConfigured = loaded.find(isTenantConfigured);
+        if (firstConfigured) {
+          setTenantId(firstConfigured.id);
+        } else if (loaded.length > 0) {
+          setTenantId(loaded[0].id);
+        }
+      }
+      setIsLoading(false);
+    })();
+  }, []);
+
+  const tenant = tenants.find((t) => t.id === tenantId) ?? null;
+
+  const switchTenant = (id: string) => {
+    const target = tenants.find((t) => t.id === id);
+    if (!target) return;
+
+    if (!isTenantConfigured(target)) {
       showToast({
         style: Toast.Style.Failure,
         title: "Tenant Not Configured",
-        message: `Please configure ${TENANT_LABELS[key]} credentials in preferences`,
+        message: `Please configure ${target.name} credentials`,
       });
       return;
     }
 
-    setTenantKey(key);
+    setTenantId(id);
     showToast({
       style: Toast.Style.Success,
       title: "Tenant Switched",
-      message: `Now using ${TENANT_LABELS[key]} (${config.domain})`,
+      message: `Now using ${target.name} (${target.domain})`,
     });
   };
 
-  return { tenantKey, tenantConfig, switchTenant, isTenantConfigured } as const;
+  return { tenantId, tenant, tenants, switchTenant, loadTenants, isLoading } as const;
 }

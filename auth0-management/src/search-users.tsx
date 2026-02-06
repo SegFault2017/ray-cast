@@ -2,22 +2,10 @@ import { List, ActionPanel, Action, showToast, Toast, Icon, Color, Image } from 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useCachedState } from "@raycast/utils";
 import { searchUsers } from "./utils/auth0-client";
-import { getTenantConfig } from "./utils/preferences";
+import { isTenantConfigured } from "./utils/tenant-storage";
 import { useActiveTenant } from "./utils/use-active-tenant";
-import { User, TenantKey } from "./utils/types";
+import { User } from "./utils/types";
 import UserDetail from "./components/UserDetail";
-
-const TENANT_COLORS: Record<TenantKey, Color> = {
-  dev: Color.Green,
-  staging: Color.Orange,
-  prod: Color.Red,
-};
-
-const ALL_TENANTS: { key: TenantKey; label: string }[] = [
-  { key: "dev", label: "Development" },
-  { key: "staging", label: "Staging" },
-  { key: "prod", label: "Production" },
-];
 
 function formatDate(dateString?: string): string {
   if (!dateString) return "Never";
@@ -30,15 +18,15 @@ export default function SearchUsers() {
   const [users, setUsers] = useCachedState<User[]>("users", []);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { tenantKey, tenantConfig, switchTenant, isTenantConfigured } = useActiveTenant();
-  const prevTenantKey = useRef(tenantKey);
+  const { tenantId, tenant, tenants, switchTenant, isLoading: tenantsLoading } = useActiveTenant();
+  const prevTenantId = useRef(tenantId);
 
   const doSearch = useCallback(
     async (term: string) => {
-      const config = getTenantConfig(tenantKey);
+      if (!tenant) return;
 
-      if (!isTenantConfigured(config)) {
-        setError(`Please configure ${config.name} credentials in preferences`);
+      if (!isTenantConfigured(tenant)) {
+        setError(`Please configure ${tenant.name} credentials`);
         return;
       }
 
@@ -46,7 +34,7 @@ export default function SearchUsers() {
       setError(null);
 
       try {
-        const results = await searchUsers(config, term);
+        const results = await searchUsers(tenant, term);
         setUsers(results);
       } catch (err) {
         const message = err instanceof Error ? err.message : "Failed to search users";
@@ -60,24 +48,26 @@ export default function SearchUsers() {
         setIsLoading(false);
       }
     },
-    [tenantKey],
+    [tenant],
   );
 
   useEffect(() => {
-    if (prevTenantKey.current !== tenantKey) {
+    if (prevTenantId.current !== tenantId) {
       setUsers([]);
-      prevTenantKey.current = tenantKey;
+      prevTenantId.current = tenantId;
     }
+
+    if (!tenant) return;
 
     const timer = setTimeout(() => {
       doSearch(searchText);
     }, 300);
 
     return () => clearTimeout(timer);
-  }, [searchText, doSearch, tenantKey]);
+  }, [searchText, doSearch, tenantId, tenant]);
 
-  const handleTenantChange = (newKey: string) => {
-    switchTenant(newKey as TenantKey);
+  const handleTenantChange = (newId: string) => {
+    switchTenant(newId);
   };
 
   if (error && !users.length) {
@@ -88,24 +78,33 @@ export default function SearchUsers() {
     );
   }
 
+  if (!tenantsLoading && tenants.length === 0) {
+    return (
+      <List>
+        <List.EmptyView
+          icon={Icon.Building}
+          title="No Tenants Configured"
+          description="Use the Switch Tenant command to add a tenant first"
+        />
+      </List>
+    );
+  }
+
   return (
     <List
-      isLoading={isLoading}
+      isLoading={isLoading || tenantsLoading}
       onSearchTextChange={setSearchText}
       searchBarPlaceholder="Search by name, email, or user ID..."
       navigationTitle="Search Users"
       searchBarAccessory={
-        <List.Dropdown tooltip="Switch Tenant" value={tenantKey} onChange={handleTenantChange}>
-          {ALL_TENANTS.map(({ key, label }) => {
-            const config = getTenantConfig(key);
-            return (
-              <List.Dropdown.Item
-                key={key}
-                title={`${label} (${config.domain || "not configured"})`}
-                value={key}
-              />
-            );
-          })}
+        <List.Dropdown tooltip="Switch Tenant" value={tenantId} onChange={handleTenantChange}>
+          {tenants.map((t) => (
+            <List.Dropdown.Item
+              key={t.id}
+              title={`${t.name} (${t.domain || "not configured"})`}
+              value={t.id}
+            />
+          ))}
         </List.Dropdown>
       }
     >
@@ -123,7 +122,9 @@ export default function SearchUsers() {
           title={user.email}
           subtitle={user.name}
           accessories={[
-            { tag: { value: tenantKey.toUpperCase(), color: TENANT_COLORS[tenantKey] } },
+            tenant
+              ? { tag: { value: tenant.name.toUpperCase(), color: tenant.color } }
+              : {},
             { text: `Logins: ${user.logins_count ?? 0}` },
             { text: formatDate(user.last_login), tooltip: "Last login" },
             user.blocked ? { icon: { source: Icon.Lock, tintColor: Color.Red }, tooltip: "Blocked" } : {},
@@ -133,7 +134,7 @@ export default function SearchUsers() {
               <Action.Push
                 title="View Details"
                 icon={Icon.Eye}
-                target={<UserDetail user={user} domain={tenantConfig.domain} />}
+                target={<UserDetail user={user} domain={tenant?.domain ?? ""} />}
               />
               <Action.CopyToClipboard
                 title="Copy User ID"
@@ -145,11 +146,13 @@ export default function SearchUsers() {
                 content={user.email}
                 shortcut={{ modifiers: ["cmd", "shift"], key: "." }}
               />
-              <Action.OpenInBrowser
-                title="Open in Auth0 Dashboard"
-                url={`https://${tenantConfig.domain}/dashboard/tenant/users/${encodeURIComponent(user.user_id)}`}
-                shortcut={{ modifiers: ["cmd"], key: "o" }}
-              />
+              {tenant?.domain && (
+                <Action.OpenInBrowser
+                  title="Open in Auth0 Dashboard"
+                  url={`https://${tenant.domain}/dashboard/tenant/users/${encodeURIComponent(user.user_id)}`}
+                  shortcut={{ modifiers: ["cmd"], key: "o" }}
+                />
+              )}
               <Action
                 title="Refresh"
                 icon={Icon.ArrowClockwise}

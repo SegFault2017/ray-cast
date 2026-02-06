@@ -1,3 +1,5 @@
+import { Color } from "@raycast/api";
+
 export interface Identity {
   provider: string;
   user_id: string;
@@ -28,10 +30,17 @@ export interface TenantConfig {
   clientSecret: string;
 }
 
-export type TenantKey = "dev" | "staging" | "prod";
+export interface Tenant {
+  id: string;
+  name: string;
+  domain: string;
+  clientId: string;
+  clientSecret: string;
+  color: Color;
+}
 
-export interface Preferences {
-  activeTenant: TenantKey;
+export interface LegacyPreferences {
+  activeTenant: string;
   devDomain: string;
   devClientId: string;
   devClientSecret: string;

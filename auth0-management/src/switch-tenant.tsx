@@ -1,53 +1,109 @@
-import { List, ActionPanel, Action, Icon, Color, openExtensionPreferences, popToRoot } from "@raycast/api";
-import { getTenantConfig } from "./utils/preferences";
+import { List, ActionPanel, Action, Icon, Color, confirmAlert, Alert, showToast, Toast, popToRoot } from "@raycast/api";
 import { useActiveTenant } from "./utils/use-active-tenant";
-import { TenantKey } from "./utils/types";
-
-const TENANTS: { key: TenantKey; label: string; color: Color }[] = [
-  { key: "dev", label: "Development", color: Color.Green },
-  { key: "staging", label: "Staging", color: Color.Orange },
-  { key: "prod", label: "Production", color: Color.Red },
-];
+import { addTenant, updateTenant, deleteTenant, isTenantConfigured } from "./utils/tenant-storage";
+import { Tenant } from "./utils/types";
+import TenantForm from "./components/TenantForm";
 
 export default function SwitchTenant() {
-  const { tenantKey: activeKey, switchTenant, isTenantConfigured } = useActiveTenant();
+  const { tenantId, tenants, switchTenant, loadTenants, isLoading } = useActiveTenant();
+
+  const handleAdd = async (values: { name: string; domain: string; clientId: string; clientSecret: string }) => {
+    await addTenant(values);
+    await loadTenants();
+    showToast({ style: Toast.Style.Success, title: "Tenant Added", message: values.name });
+  };
+
+  const handleEdit = (tenant: Tenant) => async (values: Omit<Tenant, "id" | "color">) => {
+    await updateTenant(tenant.id, values);
+    await loadTenants();
+    showToast({ style: Toast.Style.Success, title: "Tenant Updated", message: values.name });
+  };
+
+  const handleDelete = async (tenant: Tenant) => {
+    const confirmed = await confirmAlert({
+      title: `Delete ${tenant.name}?`,
+      message: "This will remove the tenant and its credentials.",
+      primaryAction: { title: "Delete", style: Alert.ActionStyle.Destructive },
+    });
+    if (!confirmed) return;
+    await deleteTenant(tenant.id);
+    await loadTenants();
+    showToast({ style: Toast.Style.Success, title: "Tenant Deleted", message: tenant.name });
+  };
 
   return (
-    <List navigationTitle="Switch Tenant">
-      {TENANTS.map(({ key, label, color }) => {
-        const config = getTenantConfig(key);
-        const isActive = key === activeKey;
-        const isConfigured = isTenantConfigured(config);
+    <List
+      isLoading={isLoading}
+      navigationTitle="Switch Tenant"
+      actions={
+        <ActionPanel>
+          <Action.Push
+            title="Add Tenant"
+            icon={Icon.Plus}
+            shortcut={{ modifiers: ["cmd"], key: "n" }}
+            target={<TenantForm onSubmit={handleAdd} />}
+          />
+        </ActionPanel>
+      }
+    >
+      {tenants.length === 0 && !isLoading && (
+        <List.EmptyView icon={Icon.Building} title="No Tenants" description="Press Cmd+N to add your first tenant" />
+      )}
+      {tenants.map((tenant) => {
+        const isActive = tenant.id === tenantId;
+        const configured = isTenantConfigured(tenant);
 
         return (
           <List.Item
-            key={key}
-            icon={isActive ? { source: Icon.CheckCircle, tintColor: color } : { source: Icon.Circle, tintColor: color }}
-            title={label}
-            subtitle={config.domain || "Not configured"}
+            key={tenant.id}
+            icon={
+              isActive
+                ? { source: Icon.CheckCircle, tintColor: tenant.color }
+                : { source: Icon.Circle, tintColor: tenant.color }
+            }
+            title={tenant.name}
+            subtitle={tenant.domain || "Not configured"}
             accessories={[
-              isActive ? { tag: { value: "Active", color } } : {},
-              isConfigured
+              isActive ? { tag: { value: "Active", color: tenant.color } } : {},
+              configured
                 ? { icon: { source: Icon.Check, tintColor: Color.Green }, tooltip: "Configured" }
                 : { icon: { source: Icon.Xmark, tintColor: Color.SecondaryText }, tooltip: "Not configured" },
             ]}
             actions={
               <ActionPanel>
-                {!isActive && isConfigured && (
+                {!isActive && configured && (
                   <Action
-                    title={`Switch to ${label}`}
+                    title={`Switch to ${tenant.name}`}
                     icon={Icon.Switch}
                     onAction={() => {
-                      switchTenant(key);
+                      switchTenant(tenant.id);
                       popToRoot();
                     }}
                   />
                 )}
-                <Action title="Open Preferences" icon={Icon.Gear} onAction={openExtensionPreferences} />
-                {config.domain && (
+                <Action.Push
+                  title="Edit Tenant"
+                  icon={Icon.Pencil}
+                  shortcut={{ modifiers: ["cmd"], key: "e" }}
+                  target={<TenantForm tenant={tenant} onSubmit={handleEdit(tenant)} />}
+                />
+                <Action
+                  title="Delete Tenant"
+                  icon={Icon.Trash}
+                  style={Action.Style.Destructive}
+                  shortcut={{ modifiers: ["ctrl"], key: "x" }}
+                  onAction={() => handleDelete(tenant)}
+                />
+                <Action.Push
+                  title="Add Tenant"
+                  icon={Icon.Plus}
+                  shortcut={{ modifiers: ["cmd"], key: "n" }}
+                  target={<TenantForm onSubmit={handleAdd} />}
+                />
+                {tenant.domain && (
                   <Action.CopyToClipboard
                     title="Copy Domain"
-                    content={config.domain}
+                    content={tenant.domain}
                     shortcut={{ modifiers: ["cmd"], key: "." }}
                   />
                 )}
