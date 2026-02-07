@@ -52,4 +52,3 @@ export interface Organization {
   };
   metadata?: Record<string, string>;
 }
-

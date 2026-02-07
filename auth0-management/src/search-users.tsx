@@ -118,20 +118,14 @@ export default function SearchUsers() {
           title={user.email}
           subtitle={user.name}
           accessories={[
-            tenant
-              ? { tag: { value: tenant.environment, color: tenant.color } }
-              : {},
+            tenant ? { tag: { value: tenant.environment, color: tenant.color } } : {},
             { text: `Logins: ${user.logins_count ?? 0}` },
             { text: formatDate(user.last_login), tooltip: "Last login" },
             user.blocked ? { icon: { source: Icon.Lock, tintColor: Color.Red }, tooltip: "Blocked" } : {},
           ]}
           actions={
             <ActionPanel>
-              <Action.Push
-                title="View Details"
-                icon={Icon.Eye}
-                target={<UserDetail user={user} domain={tenant?.domain ?? ""} />}
-              />
+              <Action.Push title="View Details" icon={Icon.Eye} target={<UserDetail user={user} tenant={tenant!} />} />
               <Action.CopyToClipboard
                 title="Copy User ID"
                 content={user.user_id}

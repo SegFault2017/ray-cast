@@ -1,9 +1,11 @@
 import { Detail, ActionPanel, Action } from "@raycast/api";
-import { User } from "../utils/types";
+import { usePromise } from "@raycast/utils";
+import { Tenant, User } from "../utils/types";
+import { getUserOrganizations } from "../utils/auth0-client";
 
 interface UserDetailProps {
   user: User;
-  domain: string;
+  tenant: Tenant;
 }
 
 function formatDate(dateString?: string): string {
@@ -16,7 +18,9 @@ function escapeTableCell(value: string): string {
   return value.replace(/\|/g, "\u2502");
 }
 
-export default function UserDetail({ user, domain }: UserDetailProps) {
+export default function UserDetail({ user, tenant }: UserDetailProps) {
+  const { data: organizations, isLoading } = usePromise(getUserOrganizations, [tenant, user.user_id]);
+
   const identities =
     user.identities && user.identities.length > 0
       ? user.identities
@@ -26,6 +30,15 @@ export default function UserDetail({ user, domain }: UserDetailProps) {
           )
           .join(", ")
       : "None";
+
+  let orgsSection: string;
+  if (isLoading) {
+    orgsSection = "Loading...";
+  } else if (organizations && organizations.length > 0) {
+    orgsSection = organizations.map((org) => `- ${org.display_name || org.name} (\`${org.id}\`)`).join("\n");
+  } else {
+    orgsSection = "None";
+  }
 
   const markdown = `# ${user.name || user.email}
 
@@ -43,12 +56,17 @@ ${user.picture ? `![Avatar](${user.picture})` : ""}
 | **Login Count** | ${user.logins_count ?? 0} |
 | **Blocked** | ${user.blocked ? "Yes" : "No"} |
 | **Identities** | ${identities} |
+
+## Organizations
+
+${orgsSection}
 `;
 
-  const dashboardUrl = `https://${domain}/dashboard/tenant/users/${encodeURIComponent(user.user_id)}`;
+  const dashboardUrl = `https://${tenant.domain}/dashboard/tenant/users/${encodeURIComponent(user.user_id)}`;
 
   return (
     <Detail
+      isLoading={isLoading}
       markdown={markdown}
       navigationTitle={user.email}
       actions={

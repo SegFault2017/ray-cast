@@ -115,7 +115,7 @@ export default function ViewOrganizations() {
               <Action.Push
                 title="View Details"
                 icon={Icon.Eye}
-                target={<OrganizationDetail organization={org} domain={tenant?.domain ?? ""} />}
+                target={<OrganizationDetail organization={org} tenant={tenant!} />}
               />
               <Action.CopyToClipboard
                 title="Copy Org ID"

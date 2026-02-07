@@ -73,7 +73,12 @@ export default function SwitchTenant() {
             subtitle={tenant.domain || "Not configured"}
             accessories={[
               tenant.environment
-                ? { tag: { value: tenant.environment.charAt(0).toUpperCase() + tenant.environment.slice(1), color: Color.SecondaryText } }
+                ? {
+                    tag: {
+                      value: tenant.environment.charAt(0).toUpperCase() + tenant.environment.slice(1),
+                      color: Color.SecondaryText,
+                    },
+                  }
                 : {},
               isActive ? { tag: { value: "Active", color: tenant.color } } : {},
               configured

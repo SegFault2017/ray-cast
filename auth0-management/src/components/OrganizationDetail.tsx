@@ -1,16 +1,18 @@
-import { Detail, ActionPanel, Action } from "@raycast/api";
-import { Organization } from "../utils/types";
+import { Detail, ActionPanel, Action, Icon } from "@raycast/api";
+import { Organization, Tenant } from "../utils/types";
+import AssignUserToOrg from "./AssignUserToOrg";
 
 interface OrganizationDetailProps {
   organization: Organization;
-  domain: string;
+  tenant: Tenant;
 }
 
 function escapeTableCell(value: string): string {
   return value.replace(/\|/g, "\u2502");
 }
 
-export default function OrganizationDetail({ organization, domain }: OrganizationDetailProps) {
+export default function OrganizationDetail({ organization, tenant }: OrganizationDetailProps) {
+  const domain = tenant.domain;
   const metadataKeys =
     organization.metadata && Object.keys(organization.metadata).length > 0
       ? Object.entries(organization.metadata)
@@ -18,10 +20,9 @@ export default function OrganizationDetail({ organization, domain }: Organizatio
           .join(", ")
       : "—";
 
-  const brandingColors =
-    organization.branding?.colors
-      ? [organization.branding.colors.primary, organization.branding.colors.page_background].filter(Boolean).join(", ")
-      : "—";
+  const brandingColors = organization.branding?.colors
+    ? [organization.branding.colors.primary, organization.branding.colors.page_background].filter(Boolean).join(", ")
+    : "—";
 
   const markdown = `# ${organization.display_name || organization.name}
 
@@ -45,6 +46,11 @@ ${organization.branding?.logo_url ? `![Logo](${organization.branding.logo_url})`
       navigationTitle={organization.display_name || organization.name}
       actions={
         <ActionPanel>
+          <Action.Push
+            title="Assign User"
+            icon={Icon.AddPerson}
+            target={<AssignUserToOrg tenant={tenant} organization={organization} />}
+          />
           <Action.CopyToClipboard title="Copy Org ID" content={organization.id} />
           <Action.CopyToClipboard title="Copy Org Name" content={organization.name} />
           <Action.OpenInBrowser title="Open in Auth0 Dashboard" url={dashboardUrl} />
