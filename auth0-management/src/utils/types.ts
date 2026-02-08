@@ -52,3 +52,48 @@ export interface Organization {
   };
   metadata?: Record<string, string>;
 }
+
+export interface LogEntry {
+  log_id?: string;
+  date?: string;
+  type?: string;
+  description?: string;
+  connection?: string;
+  client_id?: string;
+  client_name?: string;
+  ip?: string;
+  user_id?: string;
+  user_name?: string;
+  user_agent?: string;
+  details?: Record<string, unknown>;
+  location_info?: {
+    country_name?: string;
+    city_name?: string;
+  };
+}
+
+export interface Session {
+  id?: string;
+  user_id?: string;
+  created_at?: string;
+  updated_at?: string;
+  authenticated_at?: string;
+  idle_expires_at?: string;
+  expires_at?: string;
+  last_interacted_at?: string;
+  device?: {
+    initial_user_agent?: string;
+    initial_ip?: string | null;
+    last_user_agent?: string;
+    last_ip?: string | null;
+  };
+  clients?: Array<{ client_id?: string }>;
+}
+
+export interface UserGrant {
+  id?: string;
+  clientID?: string;
+  user_id?: string;
+  audience?: string;
+  scope?: string[];
+}

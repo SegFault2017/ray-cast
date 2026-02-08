@@ -1,77 +1,83 @@
-import { List, ActionPanel, Action, showToast, Toast, Icon, Color, Image } from "@raycast/api";
+import { List, ActionPanel, Action, showToast, Toast, Icon, Color, Image, confirmAlert, Alert } from "@raycast/api";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useCachedState } from "@raycast/utils";
-import { searchUsers } from "./utils/auth0-client";
+import { getBlockedUsers, unblockUser, getAuth0ErrorMessage } from "./utils/auth0-client";
 import { isTenantConfigured } from "./utils/tenant-storage";
 import { useActiveTenant } from "./utils/use-active-tenant";
 import { User } from "./utils/types";
 import UserDetail from "./components/UserDetail";
-import SessionDetail from "./components/SessionDetail";
 
 function formatDate(dateString?: string): string {
   if (!dateString) return "Never";
-  const date = new Date(dateString);
-  return date.toLocaleDateString();
+  return new Date(dateString).toLocaleDateString();
 }
 
-export default function SearchUsers() {
-  const [searchText, setSearchText] = useState("");
-  const [users, setUsers] = useCachedState<User[]>("users", []);
+export default function ViewBlockedUsers() {
+  const [blockedUsers, setBlockedUsers] = useCachedState<User[]>("blocked-users", []);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { tenantId, tenant, tenants, switchTenant, isLoading: tenantsLoading } = useActiveTenant();
   const prevTenantId = useRef(tenantId);
 
-  const doSearch = useCallback(
-    async (term: string) => {
-      if (!tenant) return;
+  const fetchBlockedUsers = useCallback(async () => {
+    if (!tenant) return;
 
-      if (!isTenantConfigured(tenant)) {
-        setError(`Please configure ${tenant.name} credentials`);
-        return;
-      }
+    if (!isTenantConfigured(tenant)) {
+      setError(`Please configure ${tenant.name} credentials`);
+      return;
+    }
 
-      setIsLoading(true);
-      setError(null);
+    setIsLoading(true);
+    setError(null);
 
-      try {
-        const results = await searchUsers(tenant, term);
-        setUsers(results);
-      } catch (err) {
-        const message = err instanceof Error ? err.message : "Failed to search users";
-        setError(message);
-        showToast({
-          style: Toast.Style.Failure,
-          title: "Search Failed",
-          message,
-        });
-      } finally {
-        setIsLoading(false);
-      }
-    },
-    [tenant],
-  );
+    try {
+      const results = await getBlockedUsers(tenant);
+      setBlockedUsers(results);
+    } catch (err) {
+      const message = getAuth0ErrorMessage(err, "read:users");
+      setError(message);
+      showToast({ style: Toast.Style.Failure, title: "Fetch Failed", message });
+    } finally {
+      setIsLoading(false);
+    }
+  }, [tenant]);
 
   useEffect(() => {
     if (prevTenantId.current !== tenantId) {
-      setUsers([]);
+      setBlockedUsers([]);
       prevTenantId.current = tenantId;
     }
 
     if (!tenant) return;
-
-    const timer = setTimeout(() => {
-      doSearch(searchText);
-    }, 300);
-
-    return () => clearTimeout(timer);
-  }, [searchText, doSearch, tenantId, tenant]);
+    fetchBlockedUsers();
+  }, [fetchBlockedUsers, tenantId, tenant]);
 
   const handleTenantChange = (newId: string) => {
     switchTenant(newId);
   };
 
-  if (error && !users.length) {
+  const handleUnblock = async (user: User) => {
+    if (!tenant) return;
+
+    const confirmed = await confirmAlert({
+      title: `Unblock ${user.email}?`,
+      message: "This will allow the user to log in again.",
+      primaryAction: { title: "Unblock", style: Alert.ActionStyle.Destructive },
+    });
+    if (!confirmed) return;
+
+    try {
+      await showToast({ style: Toast.Style.Animated, title: "Unblocking user…" });
+      await unblockUser(tenant, user.user_id);
+      await showToast({ style: Toast.Style.Success, title: "User Unblocked", message: user.email });
+      await fetchBlockedUsers();
+    } catch (err) {
+      const message = getAuth0ErrorMessage(err, "update:users");
+      showToast({ style: Toast.Style.Failure, title: "Unblock Failed", message });
+    }
+  };
+
+  if (error && !blockedUsers.length) {
     return (
       <List>
         <List.EmptyView icon={Icon.ExclamationMark} title="Configuration Required" description={error} />
@@ -94,9 +100,8 @@ export default function SearchUsers() {
   return (
     <List
       isLoading={isLoading || tenantsLoading}
-      onSearchTextChange={setSearchText}
-      searchBarPlaceholder="Search by name, email, or user ID..."
-      navigationTitle="Search Users"
+      searchBarPlaceholder="Filter blocked users..."
+      navigationTitle="View Blocked Users"
       searchBarAccessory={
         <List.Dropdown tooltip="Switch Tenant" value={tenantId} onChange={handleTenantChange}>
           {tenants.map((t) => (
@@ -105,14 +110,14 @@ export default function SearchUsers() {
         </List.Dropdown>
       }
     >
-      {users.length === 0 && !isLoading && (
+      {blockedUsers.length === 0 && !isLoading && (
         <List.EmptyView
-          icon={Icon.MagnifyingGlass}
-          title="No Users Found"
-          description={searchText ? "Try a different search term" : "Start typing to search users"}
+          icon={Icon.CheckCircle}
+          title="No Blocked Users"
+          description="No users are currently blocked on this tenant"
         />
       )}
-      {users.map((user) => (
+      {blockedUsers.map((user) => (
         <List.Item
           key={user.user_id}
           icon={user.picture ? { source: user.picture, mask: Image.Mask.Circle } : Icon.Person}
@@ -120,18 +125,17 @@ export default function SearchUsers() {
           subtitle={user.name}
           accessories={[
             tenant ? { tag: { value: tenant.environment, color: tenant.color } } : {},
-            { text: `Logins: ${user.logins_count ?? 0}` },
+            { tag: { value: "Blocked", color: Color.Red } },
             { text: formatDate(user.last_login), tooltip: "Last login" },
-            user.blocked ? { icon: { source: Icon.Lock, tintColor: Color.Red }, tooltip: "Blocked" } : {},
           ]}
           actions={
             <ActionPanel>
               <Action.Push title="View Details" icon={Icon.Eye} target={<UserDetail user={user} tenant={tenant!} />} />
-              <Action.Push
-                title="View Sessions & Grants"
-                icon={Icon.TwoArrowsClockwise}
-                target={<SessionDetail user={user} tenant={tenant!} />}
-                shortcut={{ modifiers: ["cmd"], key: "s" }}
+              <Action
+                title="Unblock User"
+                icon={Icon.LockUnlocked}
+                style={Action.Style.Destructive}
+                onAction={() => handleUnblock(user)}
               />
               <Action.CopyToClipboard
                 title="Copy User ID"
@@ -154,7 +158,7 @@ export default function SearchUsers() {
                 title="Refresh"
                 icon={Icon.ArrowClockwise}
                 shortcut={{ modifiers: ["cmd"], key: "r" }}
-                onAction={() => doSearch(searchText)}
+                onAction={() => fetchBlockedUsers()}
               />
             </ActionPanel>
           }

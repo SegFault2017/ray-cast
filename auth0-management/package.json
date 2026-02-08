@@ -34,6 +34,27 @@
       "subtitle": "Auth0",
       "description": "Browse Auth0 organizations",
       "mode": "view"
+    },
+    {
+      "name": "view-logs",
+      "title": "View Logs",
+      "subtitle": "Auth0",
+      "description": "Browse Auth0 tenant logs - logins, failures, errors",
+      "mode": "view"
+    },
+    {
+      "name": "test-connection",
+      "title": "Test Tenant Connection",
+      "subtitle": "Auth0",
+      "description": "Verify tenant credentials and connection status",
+      "mode": "view"
+    },
+    {
+      "name": "view-blocked-users",
+      "title": "View Blocked Users",
+      "subtitle": "Auth0",
+      "description": "List and manage blocked users",
+      "mode": "view"
     }
   ],
   "dependencies": {
