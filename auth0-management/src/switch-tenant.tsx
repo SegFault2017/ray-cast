@@ -4,6 +4,7 @@ import { addTenant, updateTenant, deleteTenant, isTenantConfigured } from "./uti
 import { Environment, Tenant } from "./utils/types";
 import TenantForm from "./components/TenantForm";
 
+/** Raycast command: view, add, edit, delete, and switch between Auth0 tenants. */
 export default function SwitchTenant() {
   const { tenantId, tenants, switchTenant, loadTenants, isLoading } = useActiveTenant();
 

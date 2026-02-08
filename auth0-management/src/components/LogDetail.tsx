@@ -6,15 +6,18 @@ interface LogDetailProps {
   tenant: Tenant;
 }
 
+/** Format an ISO date string as a localized date+time, or "—" if absent. */
 function formatDate(dateString?: string): string {
   if (!dateString) return "—";
   return new Date(dateString).toLocaleString();
 }
 
+/** Replace pipe characters with a Unicode box-drawing character to avoid breaking markdown tables. */
 function escapeTableCell(value: string): string {
   return value.replace(/\|/g, "\u2502");
 }
 
+/** Detail view showing all fields of a single log entry with a raw JSON details section. */
 export default function LogDetail({ log, tenant }: LogDetailProps) {
   const location = [log.location_info?.city_name, log.location_info?.country_name].filter(Boolean).join(", ") || "—";
 

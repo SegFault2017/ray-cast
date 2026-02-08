@@ -7,11 +7,13 @@ import { useActiveTenant } from "./utils/use-active-tenant";
 import { User } from "./utils/types";
 import UserDetail from "./components/UserDetail";
 
+/** Format an ISO date string as a localized date, or "Never" if absent. */
 function formatDate(dateString?: string): string {
   if (!dateString) return "Never";
   return new Date(dateString).toLocaleDateString();
 }
 
+/** Raycast command: list blocked Auth0 users with the ability to unblock them. */
 export default function ViewBlockedUsers() {
   const [blockedUsers, setBlockedUsers] = useCachedState<User[]>("blocked-users", []);
   const [isLoading, setIsLoading] = useState(false);

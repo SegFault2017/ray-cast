@@ -8,16 +8,19 @@ interface UserDetailProps {
   tenant: Tenant;
 }
 
+/** Format an ISO date string as a localized date+time, or "Never" if absent. */
 function formatDate(dateString?: string): string {
   if (!dateString) return "Never";
   const date = new Date(dateString);
   return date.toLocaleString();
 }
 
+/** Replace pipe characters with a Unicode box-drawing character to avoid breaking markdown tables. */
 function escapeTableCell(value: string): string {
   return value.replace(/\|/g, "\u2502");
 }
 
+/** Detail view showing a user's full profile, identities, and organization memberships. */
 export default function UserDetail({ user, tenant }: UserDetailProps) {
   const { data: organizations, isLoading } = usePromise(getUserOrganizations, [tenant, user.user_id]);
 

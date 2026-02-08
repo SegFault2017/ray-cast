@@ -14,15 +14,18 @@ interface SessionDetailProps {
   tenant: Tenant;
 }
 
+/** Format an ISO date string as a localized date+time, or "—" if absent. */
 function formatDate(dateString?: string): string {
   if (!dateString) return "—";
   return new Date(dateString).toLocaleString();
 }
 
+/** Replace pipe characters with a Unicode box-drawing character to avoid breaking markdown tables. */
 function escapeTableCell(value: string): string {
   return value.replace(/\|/g, "\u2502");
 }
 
+/** Detail view showing a user's active sessions and OAuth2 grants, with revocation actions. */
 export default function SessionDetail({ user, tenant }: SessionDetailProps) {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [grants, setGrants] = useState<UserGrant[]>([]);

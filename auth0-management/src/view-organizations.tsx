@@ -7,6 +7,7 @@ import { useActiveTenant } from "./utils/use-active-tenant";
 import { Organization } from "./utils/types";
 import OrganizationDetail from "./components/OrganizationDetail";
 
+/** Raycast command: browse Auth0 organizations with client-side filtering and tenant switching. */
 export default function ViewOrganizations() {
   const [searchText, setSearchText] = useState("");
   const [organizations, setOrganizations] = useCachedState<Organization[]>("organizations", []);

@@ -34,11 +34,13 @@ const LOG_TYPE_MAP: Record<string, { label: string; icon: Icon; color: Color }> 
   gd_otp_rate_limit_exceed: { label: "OTP Rate Limit", icon: Icon.Lock, color: Color.Orange },
 };
 
+/** Map a log event type code to its display label, icon, and color. Falls back to a generic style. */
 function getLogTypeInfo(type?: string) {
   if (!type) return { label: "Unknown", icon: Icon.QuestionMark, color: Color.SecondaryText };
   return LOG_TYPE_MAP[type] || { label: type, icon: Icon.Dot, color: Color.SecondaryText };
 }
 
+/** Format an ISO date string as a human-readable relative time (e.g. "5m ago", "2d ago"). */
 function formatRelativeDate(dateString?: string): string {
   if (!dateString) return "";
   const date = new Date(dateString);
@@ -53,6 +55,10 @@ function formatRelativeDate(dateString?: string): string {
   return `${diffDays}d ago`;
 }
 
+/**
+ * Build a concise label for the active date filter to display in the navigation title.
+ * Returns undefined when no filter is active. Detects presets, exact-date, and custom ranges.
+ */
 function formatFilterLabel(dateFrom: Date | null, dateTo: Date | null): string | undefined {
   if (!dateFrom && !dateTo) return undefined;
 
@@ -92,6 +98,7 @@ function formatFilterLabel(dateFrom: Date | null, dateTo: Date | null): string |
   return `${fmt(dateFrom!)} – ${fmt(dateTo!)}`;
 }
 
+/** Form component that lets the user enter a custom numerical time range (e.g. "12 hours ago"). */
 function CustomTimeRangeForm({ onApply }: { onApply: (from: Date) => void }) {
   const { pop } = useNavigation();
   const [valueError, setValueError] = useState<string | undefined>();
@@ -147,6 +154,7 @@ function CustomTimeRangeForm({ onApply }: { onApply: (from: Date) => void }) {
   );
 }
 
+/** Raycast command: browse Auth0 tenant logs with text search, date range filters, and time presets. */
 export default function ViewLogs() {
   const [searchText, setSearchText] = useState("");
   const [logs, setLogs] = useCachedState<LogEntry[]>("logs", []);

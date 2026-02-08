@@ -15,6 +15,7 @@ interface TenantFormProps {
   onSubmit: (values: TenantFormValues) => Promise<void>;
 }
 
+/** Reusable form for creating or editing a tenant's name, environment, and credentials. */
 export default function TenantForm({ tenant, onSubmit }: TenantFormProps) {
   const { pop } = useNavigation();
 

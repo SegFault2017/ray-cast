@@ -1,5 +1,6 @@
 import { Color } from "@raycast/api";
 
+/** An Auth0 user identity from a specific connection/provider. */
 export interface Identity {
   provider: string;
   user_id: string;
@@ -7,6 +8,7 @@ export interface Identity {
   isSocial: boolean;
 }
 
+/** An Auth0 user profile with login metadata and identity info. */
 export interface User {
   user_id: string;
   email: string;
@@ -23,6 +25,7 @@ export interface User {
   blocked?: boolean;
 }
 
+/** Credentials needed to create an Auth0 ManagementClient for a tenant. */
 export interface TenantConfig {
   name: string;
   domain: string;
@@ -30,8 +33,10 @@ export interface TenantConfig {
   clientSecret: string;
 }
 
+/** The deployment environment label for a tenant. */
 export type Environment = "Dev" | "Staging" | "Prod";
 
+/** A configured Auth0 tenant with credentials, environment, and display color. */
 export interface Tenant {
   id: string;
   name: string;
@@ -42,6 +47,7 @@ export interface Tenant {
   color: Color;
 }
 
+/** An Auth0 organization with optional branding and metadata. */
 export interface Organization {
   id: string;
   name: string;
@@ -53,6 +59,7 @@ export interface Organization {
   metadata?: Record<string, string>;
 }
 
+/** A single Auth0 tenant log event (login, failure, API operation, etc.). */
 export interface LogEntry {
   log_id?: string;
   date?: string;
@@ -72,6 +79,7 @@ export interface LogEntry {
   };
 }
 
+/** An active Auth0 user session with device and expiration info. */
 export interface Session {
   id?: string;
   user_id?: string;
@@ -90,6 +98,7 @@ export interface Session {
   clients?: Array<{ client_id?: string }>;
 }
 
+/** An OAuth2 grant issued to a user for a specific audience/client. */
 export interface UserGrant {
   id?: string;
   clientID?: string;

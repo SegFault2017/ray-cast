@@ -8,6 +8,7 @@ interface AssignUserToOrgProps {
   organization: Organization;
 }
 
+/** Extract a user-friendly error message from an Auth0 SDK error or generic Error. */
 function getErrorMessage(err: unknown): string {
   if (err != null && typeof err === "object" && "body" in err) {
     const body = (err as { body?: { message?: string } }).body;
@@ -16,6 +17,7 @@ function getErrorMessage(err: unknown): string {
   return err instanceof Error ? err.message : "Unknown error";
 }
 
+/** Search and assign users to an organization, excluding already-assigned members. */
 export default function AssignUserToOrg({ tenant, organization }: AssignUserToOrgProps) {
   const [searchText, setSearchText] = useState("");
   const [users, setUsers] = useState<User[]>([]);

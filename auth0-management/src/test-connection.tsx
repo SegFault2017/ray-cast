@@ -11,6 +11,7 @@ interface TenantTestResult {
   responseTimeMs?: number;
 }
 
+/** Raycast command: verify each tenant's API credentials by fetching the tenant friendly name. */
 export default function TestConnection() {
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [results, setResults] = useState<Map<string, TenantTestResult>>(new Map());

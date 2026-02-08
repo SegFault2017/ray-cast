@@ -8,12 +8,14 @@ import { User } from "./utils/types";
 import UserDetail from "./components/UserDetail";
 import SessionDetail from "./components/SessionDetail";
 
+/** Format an ISO date string as a localized date, or "Never" if absent. */
 function formatDate(dateString?: string): string {
   if (!dateString) return "Never";
   const date = new Date(dateString);
   return date.toLocaleDateString();
 }
 
+/** Raycast command: search Auth0 users by name, email, or user ID with a tenant dropdown. */
 export default function SearchUsers() {
   const [searchText, setSearchText] = useState("");
   const [users, setUsers] = useCachedState<User[]>("users", []);
@@ -129,6 +131,7 @@ export default function SearchUsers() {
               <Action.Push title="View Details" icon={Icon.Eye} target={<UserDetail user={user} tenant={tenant!} />} />
               <Action.Push
                 title="View Sessions & Grants"
+                //TODO: use a different icon here if there are active sessions or grants?
                 icon={Icon.TwoArrowsClockwise}
                 target={<SessionDetail user={user} tenant={tenant!} />}
                 shortcut={{ modifiers: ["cmd"], key: "s" }}

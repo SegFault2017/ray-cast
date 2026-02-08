@@ -7,10 +7,12 @@ interface OrganizationDetailProps {
   tenant: Tenant;
 }
 
+/** Replace pipe characters with a Unicode box-drawing character to avoid breaking markdown tables. */
 function escapeTableCell(value: string): string {
   return value.replace(/\|/g, "\u2502");
 }
 
+/** Detail view showing an organization's metadata, branding, and action to assign users. */
 export default function OrganizationDetail({ organization, tenant }: OrganizationDetailProps) {
   const domain = tenant.domain;
   const metadataKeys =
