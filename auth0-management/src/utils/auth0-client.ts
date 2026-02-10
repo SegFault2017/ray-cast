@@ -1,5 +1,5 @@
 import { ManagementClient, ManagementError } from "auth0";
-import { LogEntry, Organization, Session, TenantConfig, User, UserGrant } from "./types";
+import { Auth0App, LogEntry, Organization, Session, TenantConfig, User, UserGrant } from "./types";
 
 /** Cache of ManagementClient instances keyed by domain (SDK handles token management). */
 const clientCache: Map<string, ManagementClient> = new Map();
@@ -171,4 +171,11 @@ export async function revokeUserSessions(config: TenantConfig, userId: string): 
 export async function revokeGrant(config: TenantConfig, grantId: string): Promise<void> {
   const client = getClient(config);
   await client.userGrants.delete(grantId);
+}
+
+/** List Auth0 applications (clients) for the tenant. */
+export async function listApps(config: TenantConfig, perPage = 50): Promise<Auth0App[]> {
+  const client = getClient(config);
+  const response = await client.clients.list({ per_page: perPage, page: 0 });
+  return response.data as unknown as Auth0App[];
 }

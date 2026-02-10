@@ -50,10 +50,10 @@
       "mode": "view"
     },
     {
-      "name": "view-blocked-users",
-      "title": "View Blocked Users",
+      "name": "view-apps",
+      "title": "View Apps",
       "subtitle": "Auth0",
-      "description": "List and manage blocked users",
+      "description": "Browse Auth0 applications and their settings",
       "mode": "view"
     }
   ],

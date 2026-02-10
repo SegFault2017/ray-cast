@@ -7,6 +7,7 @@ import { useActiveTenant } from "./utils/use-active-tenant";
 import { User } from "./utils/types";
 import UserDetail from "./components/UserDetail";
 import SessionDetail from "./components/SessionDetail";
+import ViewBlockedUsers from "./view-blocked-users";
 
 /** Format an ISO date string as a localized date, or "Never" if absent. */
 function formatDate(dateString?: string): string {
@@ -121,10 +122,12 @@ export default function SearchUsers() {
           title={user.email}
           subtitle={user.name}
           accessories={[
-            tenant ? { tag: { value: tenant.environment, color: tenant.color } } : {},
+            ...(user.blocked ? [{ tag: { value: "Blocked", color: Color.Red } }] : []),
+            ...(user.email_verified
+              ? [{ icon: { source: Icon.Check, tintColor: Color.Green }, tooltip: "Email Verified" }]
+              : []),
             { text: `Logins: ${user.logins_count ?? 0}` },
             { text: formatDate(user.last_login), tooltip: "Last login" },
-            user.blocked ? { icon: { source: Icon.Lock, tintColor: Color.Red }, tooltip: "Blocked" } : {},
           ]}
           actions={
             <ActionPanel>
@@ -153,6 +156,12 @@ export default function SearchUsers() {
                   shortcut={{ modifiers: ["cmd"], key: "o" }}
                 />
               )}
+              <Action.Push
+                title="View Blocked Users"
+                icon={Icon.Lock}
+                target={<ViewBlockedUsers />}
+                shortcut={{ modifiers: ["cmd"], key: "b" }}
+              />
               <Action
                 title="Refresh"
                 icon={Icon.ArrowClockwise}

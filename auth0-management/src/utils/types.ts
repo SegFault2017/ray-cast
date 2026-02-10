@@ -106,3 +106,20 @@ export interface UserGrant {
   audience?: string;
   scope?: string[];
 }
+
+/** An Auth0 application (client) with its configuration and allowed URLs. */
+export interface Auth0App {
+  client_id: string;
+  name?: string;
+  description?: string;
+  app_type?: string;
+  logo_uri?: string;
+  is_first_party?: boolean;
+  callbacks?: string[];
+  allowed_origins?: string[];
+  web_origins?: string[];
+  allowed_logout_urls?: string[];
+  grant_types?: string[];
+  token_endpoint_auth_method?: string;
+  client_metadata?: Record<string, string>;
+}
