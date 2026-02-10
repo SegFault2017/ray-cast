@@ -1,22 +1,29 @@
 import { List, ActionPanel, Action, showToast, Toast, Icon } from "@raycast/api";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useCachedState } from "@raycast/utils";
-import { listOrganizations } from "./utils/auth0-client";
+import { listApps } from "./utils/auth0-client";
 import { isTenantConfigured } from "./utils/tenant-storage";
 import { useActiveTenant } from "./utils/use-active-tenant";
-import { Organization } from "./utils/types";
-import OrganizationDetail from "./components/OrganizationDetail";
+import { Auth0App } from "./utils/types";
+import AppDetail from "./components/AppDetail";
 
-/** Raycast command: browse Auth0 organizations with client-side filtering and tenant switching. */
-export default function ViewOrganizations() {
+const APP_TYPE_LABELS: Record<string, string> = {
+  non_interactive: "Machine to Machine",
+  spa: "Single Page App",
+  regular_web: "Regular Web App",
+  native: "Native",
+};
+
+/** Raycast command: browse Auth0 applications with client-side filtering and tenant switching. */
+export default function ViewApps() {
   const [searchText, setSearchText] = useState("");
-  const [organizations, setOrganizations] = useCachedState<Organization[]>("organizations", []);
+  const [apps, setApps] = useCachedState<Auth0App[]>("apps", []);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { tenantId, tenant, tenants, switchTenant, isLoading: tenantsLoading } = useActiveTenant();
   const prevTenantId = useRef(tenantId);
 
-  const fetchOrganizations = useCallback(async () => {
+  const fetchApps = useCallback(async () => {
     if (!tenant) return;
 
     if (!isTenantConfigured(tenant)) {
@@ -28,10 +35,10 @@ export default function ViewOrganizations() {
     setError(null);
 
     try {
-      const results = await listOrganizations(tenant);
-      setOrganizations(results);
+      const results = await listApps(tenant);
+      setApps(results);
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to fetch organizations";
+      const message = err instanceof Error ? err.message : "Failed to fetch applications";
       setError(message);
       showToast({
         style: Toast.Style.Failure,
@@ -45,25 +52,29 @@ export default function ViewOrganizations() {
 
   useEffect(() => {
     if (prevTenantId.current !== tenantId) {
-      setOrganizations([]);
+      setApps([]);
       prevTenantId.current = tenantId;
     }
 
     if (!tenant) return;
-    fetchOrganizations();
-  }, [fetchOrganizations, tenantId, tenant]);
+    fetchApps();
+  }, [fetchApps, tenantId, tenant]);
 
   const handleTenantChange = (newId: string) => {
     switchTenant(newId);
   };
 
-  const filtered = organizations.filter((org) => {
+  const filtered = apps.filter((app) => {
     if (!searchText) return true;
     const term = searchText.toLowerCase();
-    return org.name.toLowerCase().includes(term) || (org.display_name?.toLowerCase().includes(term) ?? false);
+    return (
+      (app.name?.toLowerCase().includes(term) ?? false) ||
+      (app.app_type?.toLowerCase().includes(term) ?? false) ||
+      app.client_id.toLowerCase().includes(term)
+    );
   });
 
-  if (error && !organizations.length) {
+  if (error && !apps.length) {
     return (
       <List>
         <List.EmptyView icon={Icon.ExclamationMark} title="Configuration Required" description={error} />
@@ -75,7 +86,7 @@ export default function ViewOrganizations() {
     return (
       <List>
         <List.EmptyView
-          icon={Icon.Building}
+          icon={Icon.AppWindow}
           title="No Tenants Configured"
           description="Use the Switch Tenant command to add a tenant first"
         />
@@ -87,8 +98,8 @@ export default function ViewOrganizations() {
     <List
       isLoading={isLoading || tenantsLoading}
       onSearchTextChange={setSearchText}
-      searchBarPlaceholder="Filter organizations..."
-      navigationTitle="View Organizations"
+      searchBarPlaceholder="Filter applications..."
+      navigationTitle="View Apps"
       searchBarAccessory={
         <List.Dropdown tooltip="Switch Tenant" value={tenantId} onChange={handleTenantChange}>
           {tenants.map((t) => (
@@ -99,39 +110,34 @@ export default function ViewOrganizations() {
     >
       {filtered.length === 0 && !isLoading && (
         <List.EmptyView
-          icon={Icon.Building}
-          title="No Organizations"
-          description={searchText ? "No organizations match your filter" : "No organizations found for this tenant"}
+          icon={Icon.AppWindow}
+          title="No Applications"
+          description={searchText ? "No applications match your filter" : "No applications found for this tenant"}
         />
       )}
-      {filtered.map((org) => (
+      {filtered.map((app) => (
         <List.Item
-          key={org.id}
-          icon={org.branding?.logo_url ? { source: org.branding.logo_url } : Icon.Building}
-          title={org.display_name || org.name}
-          subtitle={org.name}
-          accessories={[tenant ? { tag: { value: tenant.environment, color: tenant.color } } : {}]}
+          key={app.client_id}
+          icon={app.logo_uri ? { source: app.logo_uri } : Icon.AppWindow}
+          title={app.name ?? "Unnamed App"}
+          subtitle={app.app_type ? (APP_TYPE_LABELS[app.app_type] ?? app.app_type) : undefined}
+          accessories={[
+            ...(app.is_first_party ? [{ tag: "1st Party" }] : []),
+            ...(app.grant_types?.length ? [{ text: `${app.grant_types.length} grants` }] : []),
+            ...(tenant ? [{ tag: { value: tenant.environment, color: tenant.color } }] : []),
+          ]}
           actions={
             <ActionPanel>
-              <Action.Push
-                title="View Details"
-                icon={Icon.Eye}
-                target={<OrganizationDetail organization={org} tenant={tenant!} />}
-              />
+              <Action.Push title="View Details" icon={Icon.Eye} target={<AppDetail app={app} tenant={tenant!} />} />
               <Action.CopyToClipboard
-                title="Copy Org ID"
-                content={org.id}
+                title="Copy Client ID"
+                content={app.client_id}
                 shortcut={{ modifiers: ["cmd"], key: "." }}
-              />
-              <Action.CopyToClipboard
-                title="Copy Org Name"
-                content={org.name}
-                shortcut={{ modifiers: ["cmd", "shift"], key: "." }}
               />
               {tenant?.domain && (
                 <Action.OpenInBrowser
                   title="Open in Auth0 Dashboard"
-                  url={`https://${tenant.domain}/admin/organizations/${org.id}/overview`}
+                  url={`https://${tenant.domain}/admin/applications/${app.client_id}/settings`}
                   shortcut={{ modifiers: ["cmd"], key: "o" }}
                 />
               )}
@@ -139,7 +145,7 @@ export default function ViewOrganizations() {
                 title="Refresh"
                 icon={Icon.ArrowClockwise}
                 shortcut={{ modifiers: ["cmd"], key: "r" }}
-                onAction={() => fetchOrganizations()}
+                onAction={() => fetchApps()}
               />
             </ActionPanel>
           }

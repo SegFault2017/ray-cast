@@ -1,9 +1,13 @@
-import { ManagementClient } from "auth0";
-import { Organization, TenantConfig, User } from "./types";
+import { ManagementClient, ManagementError } from "auth0";
+import { Auth0App, LogEntry, Organization, Session, TenantConfig, User, UserGrant } from "./types";
 
-// Cache ManagementClient instances per domain (SDK handles token management)
+/** Cache of ManagementClient instances keyed by domain (SDK handles token management). */
 const clientCache: Map<string, ManagementClient> = new Map();
 
+/**
+ * Get or create a cached Auth0 ManagementClient for the given tenant config.
+ * Reuses existing clients to avoid redundant token negotiations.
+ */
 function getClient(config: TenantConfig): ManagementClient {
   const cached = clientCache.get(config.domain);
   if (cached) return cached;
@@ -18,6 +22,26 @@ function getClient(config: TenantConfig): ManagementClient {
   return client;
 }
 
+/**
+ * Extract a user-friendly error message from Auth0 SDK errors.
+ * For 403 errors, includes the required scope so users know what to grant.
+ */
+export function getAuth0ErrorMessage(err: unknown, requiredScope?: string): string {
+  if (err instanceof ManagementError) {
+    if (err.statusCode === 403 && requiredScope) {
+      return `Forbidden: grant the "${requiredScope}" scope to your Auth0 application in the API settings`;
+    }
+    const body = err.body as { message?: string } | undefined;
+    return body?.message || err.message || `Auth0 API error (${err.statusCode})`;
+  }
+  return err instanceof Error ? err.message : "Unknown error";
+}
+
+/**
+ * Search Auth0 users by email or name using Lucene wildcard syntax.
+ * Returns the 20 most recent users when no search term is provided.
+ * Requires at least 3 characters for wildcard search (Auth0 v3 engine constraint).
+ */
 export async function searchUsers(config: TenantConfig, searchTerm: string): Promise<User[]> {
   const client = getClient(config);
   const trimmed = searchTerm.trim();
@@ -44,25 +68,114 @@ export async function searchUsers(config: TenantConfig, searchTerm: string): Pro
   return response.data as unknown as User[];
 }
 
+/** Fetch all organizations a specific user belongs to. */
 export async function getUserOrganizations(config: TenantConfig, userId: string): Promise<Organization[]> {
   const client = getClient(config);
   const response = await client.users.organizations.list(userId);
   return response.data as unknown as Organization[];
 }
 
+/** List organizations for the tenant using checkpoint pagination. */
 export async function listOrganizations(config: TenantConfig, take = 50): Promise<Organization[]> {
   const client = getClient(config);
   const response = await client.organizations.list({ take });
   return response.data as unknown as Organization[];
 }
 
+/** Fetch up to 100 members of a specific organization. */
 export async function getOrganizationMembers(config: TenantConfig, orgId: string): Promise<User[]> {
   const client = getClient(config);
   const response = await client.organizations.members.list(orgId, { take: 100 });
   return response.data as unknown as User[];
 }
 
+/** Add one or more users as members of an organization. */
 export async function addMembersToOrganization(config: TenantConfig, orgId: string, userIds: string[]): Promise<void> {
   const client = getClient(config);
   await client.organizations.members.create(orgId, { members: userIds });
+}
+
+/**
+ * Fetch tenant logs with optional text search and date range filtering.
+ * Date ranges are passed as a Lucene `q` query via `requestOptions.queryParams`.
+ */
+export async function getLogs(
+  config: TenantConfig,
+  options?: { search?: string; page?: number; per_page?: number; dateFrom?: Date; dateTo?: Date },
+): Promise<LogEntry[]> {
+  const client = getClient(config);
+
+  // Build Lucene date range for the q parameter
+  const from = options?.dateFrom?.toISOString() ?? "*";
+  const to = options?.dateTo?.toISOString() ?? "*";
+  const dateQuery = from !== "*" || to !== "*" ? `date:[${from} TO ${to}]` : undefined;
+
+  const response = await client.logs.list(
+    {
+      search: options?.search || undefined,
+      page: options?.page ?? 0,
+      per_page: options?.per_page ?? 50,
+      sort: "date:-1",
+    },
+    dateQuery ? { queryParams: { q: dateQuery } } : undefined,
+  );
+  return response.data as unknown as LogEntry[];
+}
+
+/** Verify tenant credentials by fetching the tenant's friendly name. */
+export async function testConnection(config: TenantConfig): Promise<{ friendly_name?: string }> {
+  const client = getClient(config);
+  const response = await client.tenants.settings.get({ fields: "friendly_name" });
+  return response as { friendly_name?: string };
+}
+
+/** Fetch all users with `blocked: true` on the tenant. */
+export async function getBlockedUsers(config: TenantConfig): Promise<User[]> {
+  const client = getClient(config);
+  const response = await client.users.list({
+    q: "blocked:true",
+    search_engine: "v3",
+    per_page: 50,
+    sort: "created_at:-1",
+  });
+  return response.data as unknown as User[];
+}
+
+/** Set a user's `blocked` flag to false, allowing them to log in again. */
+export async function unblockUser(config: TenantConfig, userId: string): Promise<void> {
+  const client = getClient(config);
+  await client.users.update(userId, { blocked: false });
+}
+
+/** Fetch up to 50 active sessions for a user. */
+export async function getUserSessions(config: TenantConfig, userId: string): Promise<Session[]> {
+  const client = getClient(config);
+  const response = await client.users.sessions.list(userId, { take: 50 });
+  return response.data as unknown as Session[];
+}
+
+/** Fetch all OAuth2 grants issued to a user. */
+export async function getUserGrants(config: TenantConfig, userId: string): Promise<UserGrant[]> {
+  const client = getClient(config);
+  const response = await client.userGrants.list({ user_id: userId });
+  return response.data as unknown as UserGrant[];
+}
+
+/** Terminate all active sessions for a user, forcing re-authentication. */
+export async function revokeUserSessions(config: TenantConfig, userId: string): Promise<void> {
+  const client = getClient(config);
+  await client.users.sessions.delete(userId);
+}
+
+/** Revoke a specific OAuth2 grant by its ID. */
+export async function revokeGrant(config: TenantConfig, grantId: string): Promise<void> {
+  const client = getClient(config);
+  await client.userGrants.delete(grantId);
+}
+
+/** List Auth0 applications (clients) for the tenant. */
+export async function listApps(config: TenantConfig, perPage = 50): Promise<Auth0App[]> {
+  const client = getClient(config);
+  const response = await client.clients.list({ per_page: perPage, page: 0 });
+  return response.data as unknown as Auth0App[];
 }

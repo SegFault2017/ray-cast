@@ -34,6 +34,27 @@
       "subtitle": "Auth0",
       "description": "Browse Auth0 organizations",
       "mode": "view"
+    },
+    {
+      "name": "view-logs",
+      "title": "View Logs",
+      "subtitle": "Auth0",
+      "description": "Browse Auth0 tenant logs - logins, failures, errors",
+      "mode": "view"
+    },
+    {
+      "name": "test-connection",
+      "title": "Test Tenant Connection",
+      "subtitle": "Auth0",
+      "description": "Verify tenant credentials and connection status",
+      "mode": "view"
+    },
+    {
+      "name": "view-apps",
+      "title": "View Apps",
+      "subtitle": "Auth0",
+      "description": "Browse Auth0 applications and their settings",
+      "mode": "view"
     }
   ],
   "dependencies": {

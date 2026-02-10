@@ -4,6 +4,11 @@ import { useEffect, useRef } from "react";
 import { Tenant } from "./types";
 import { getTenants, isTenantConfigured } from "./tenant-storage";
 
+/**
+ * Hook that manages the active tenant state across all commands.
+ * Loads tenants from LocalStorage, auto-selects the first configured tenant,
+ * and provides a `switchTenant` function with validation and toast feedback.
+ */
 export function useActiveTenant() {
   const [tenantId, setTenantId] = useCachedState<string>("activeTenantId", "");
   const [tenants, setTenants] = useCachedState<Tenant[]>("tenants", []);
