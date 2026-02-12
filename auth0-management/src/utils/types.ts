@@ -107,6 +107,22 @@ export interface UserGrant {
   scope?: string[];
 }
 
+/** An Auth0 API (resource server) with its scopes and token settings. */
+export interface ResourceServer {
+  id: string;
+  name?: string;
+  identifier: string;
+  scopes?: Array<{ value: string; description?: string }>;
+  signing_alg?: string;
+  signing_secret?: string;
+  allow_offline_access?: boolean;
+  skip_consent_for_verifiable_first_party_clients?: boolean;
+  token_lifetime?: number;
+  token_lifetime_for_web?: number;
+  token_dialect?: string;
+  enforce_policies?: boolean;
+}
+
 /** An Auth0 application (client) with its configuration and allowed URLs. */
 export interface Auth0App {
   client_id: string;

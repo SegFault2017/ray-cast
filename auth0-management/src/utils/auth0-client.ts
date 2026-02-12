@@ -1,5 +1,5 @@
 import { ManagementClient, ManagementError } from "auth0";
-import { Auth0App, LogEntry, Organization, Session, TenantConfig, User, UserGrant } from "./types";
+import { Auth0App, LogEntry, Organization, ResourceServer, Session, TenantConfig, User, UserGrant } from "./types";
 
 /** Cache of ManagementClient instances keyed by domain (SDK handles token management). */
 const clientCache: Map<string, ManagementClient> = new Map();
@@ -178,4 +178,28 @@ export async function listApps(config: TenantConfig, perPage = 50): Promise<Auth
   const client = getClient(config);
   const response = await client.clients.list({ per_page: perPage, page: 0 });
   return response.data as unknown as Auth0App[];
+}
+
+/** List Auth0 APIs (resource servers) for the tenant. */
+export async function listResourceServers(config: TenantConfig, perPage = 50): Promise<ResourceServer[]> {
+  const client = getClient(config);
+  const response = await client.resourceServers.list({ per_page: perPage, page: 0 });
+  return response.data as unknown as ResourceServer[];
+}
+
+/** Fetch a single Auth0 API (resource server) by ID. */
+export async function getResourceServer(config: TenantConfig, id: string): Promise<ResourceServer> {
+  const client = getClient(config);
+  const response = await client.resourceServers.get(id);
+  return response as unknown as ResourceServer;
+}
+
+/** Replace all scopes on an Auth0 API (resource server). */
+export async function updateResourceServerScopes(
+  config: TenantConfig,
+  id: string,
+  scopes: Array<{ value: string; description?: string }>,
+): Promise<void> {
+  const client = getClient(config);
+  await client.resourceServers.update(id, { scopes });
 }
