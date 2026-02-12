@@ -55,6 +55,13 @@
       "subtitle": "Auth0",
       "description": "Browse Auth0 applications and their settings",
       "mode": "view"
+    },
+    {
+      "name": "view-apis",
+      "title": "View APIs",
+      "subtitle": "Auth0",
+      "description": "Browse Auth0 APIs (resource servers) and their scopes",
+      "mode": "view"
     }
   ],
   "dependencies": {
