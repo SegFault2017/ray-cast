@@ -43,13 +43,6 @@
       "mode": "view"
     },
     {
-      "name": "test-connection",
-      "title": "Test Tenant Connection",
-      "subtitle": "Auth0",
-      "description": "Verify tenant credentials and connection status",
-      "mode": "view"
-    },
-    {
       "name": "view-apps",
       "title": "View Apps",
       "subtitle": "Auth0",
