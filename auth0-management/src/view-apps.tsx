@@ -5,23 +5,21 @@ import { listApps } from "./utils/auth0-client";
 import { isTenantConfigured } from "./utils/tenant-storage";
 import { useActiveTenant } from "./utils/use-active-tenant";
 import { Auth0App } from "./utils/types";
+import { APP_TYPE_LABELS } from "./utils/formatting";
 import AppDetail from "./components/AppDetail";
-
-const APP_TYPE_LABELS: Record<string, string> = {
-  non_interactive: "Machine to Machine",
-  spa: "Single Page App",
-  regular_web: "Regular Web App",
-  native: "Native",
-};
+import TenantDropdown from "./components/TenantDropdown";
 
 /** Raycast command: browse Auth0 applications with client-side filtering and tenant switching. */
 export default function ViewApps() {
+  const { tenantId, tenant, tenants, switchTenant, isLoading: tenantsLoading } = useActiveTenant();
   const [searchText, setSearchText] = useState("");
-  const [apps, setApps] = useCachedState<Auth0App[]>("apps", []);
+  const [apps, setApps] = useCachedState<Auth0App[]>(`apps-${tenantId}`, []);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { tenantId, tenant, tenants, switchTenant, isLoading: tenantsLoading } = useActiveTenant();
   const prevTenantId = useRef(tenantId);
+  const domainParts = tenant?.domain.split(".") ?? [];
+  const tenantSlug = domainParts[0];
+  const region = domainParts.length >= 4 ? domainParts[1] : "us";
 
   const fetchApps = useCallback(async () => {
     if (!tenant) return;
@@ -60,10 +58,6 @@ export default function ViewApps() {
     fetchApps();
   }, [fetchApps, tenantId, tenant]);
 
-  const handleTenantChange = (newId: string) => {
-    switchTenant(newId);
-  };
-
   const filtered = apps.filter((app) => {
     if (!searchText) return true;
     const term = searchText.toLowerCase();
@@ -100,13 +94,7 @@ export default function ViewApps() {
       onSearchTextChange={setSearchText}
       searchBarPlaceholder="Filter applications..."
       navigationTitle="View Apps"
-      searchBarAccessory={
-        <List.Dropdown tooltip="Switch Tenant" value={tenantId} onChange={handleTenantChange}>
-          {tenants.map((t) => (
-            <List.Dropdown.Item key={t.id} title={`${t.name + " " + t.environment || "not configured"}`} value={t.id} />
-          ))}
-        </List.Dropdown>
-      }
+      searchBarAccessory={<TenantDropdown tenantId={tenantId} tenants={tenants} onTenantChange={switchTenant} />}
     >
       {filtered.length === 0 && !isLoading && (
         <List.EmptyView
@@ -137,7 +125,7 @@ export default function ViewApps() {
               {tenant?.domain && (
                 <Action.OpenInBrowser
                   title="Open in Auth0 Dashboard"
-                  url={`https://${tenant.domain}/admin/applications/${app.client_id}/settings`}
+                  url={`https://manage.auth0.com/dashboard/${region}/${tenantSlug}/applications/${app.client_id}/settings`}
                   shortcut={{ modifiers: ["cmd"], key: "o" }}
                 />
               )}

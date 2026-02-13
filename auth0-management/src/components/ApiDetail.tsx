@@ -1,15 +1,11 @@
 import { Detail, ActionPanel, Action, Icon } from "@raycast/api";
 import { ResourceServer, Tenant } from "../utils/types";
 import ManagePermissions from "./ManagePermissions";
+import { escapeTableCell } from "../utils/formatting";
 
 interface ApiDetailProps {
   api: ResourceServer;
   tenant: Tenant;
-}
-
-/** Replace pipe characters with a Unicode box-drawing character to avoid breaking markdown tables. */
-function escapeTableCell(value: string): string {
-  return value.replace(/\|/g, "\u2502");
 }
 
 function boolLabel(value?: boolean): string {

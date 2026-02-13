@@ -6,6 +6,7 @@ import { isTenantConfigured } from "./utils/tenant-storage";
 import { useActiveTenant } from "./utils/use-active-tenant";
 import { LogEntry } from "./utils/types";
 import LogDetail from "./components/LogDetail";
+import TenantDropdown from "./components/TenantDropdown";
 
 const LOG_TYPE_MAP: Record<string, { label: string; icon: Icon; color: Color }> = {
   s: { label: "Success Login", icon: Icon.CheckCircle, color: Color.Green },
@@ -86,16 +87,18 @@ function formatFilterLabel(dateFrom: Date | null, dateTo: Date | null): string |
 
   // Check if it's an exact-date filter (start and end of the same day)
   if (
+    dateFrom &&
+    dateTo &&
     dateFrom.getHours() === 0 &&
     dateFrom.getMinutes() === 0 &&
-    dateTo!.getHours() === 23 &&
-    dateTo!.getMinutes() === 59 &&
-    dateFrom.toDateString() === dateTo!.toDateString()
+    dateTo.getHours() === 23 &&
+    dateTo.getMinutes() === 59 &&
+    dateFrom.toDateString() === dateTo.toDateString()
   ) {
     return dateFrom.toLocaleDateString(undefined, { month: "short", day: "numeric" });
   }
 
-  return `${fmt(dateFrom!)} – ${fmt(dateTo!)}`;
+  return `${fmt(dateFrom!)} \u2013 ${fmt(dateTo!)}`;
 }
 
 /** Form component that lets the user enter a custom numerical time range (e.g. "12 hours ago"). */
@@ -156,18 +159,22 @@ function CustomTimeRangeForm({ onApply }: { onApply: (from: Date) => void }) {
 
 /** Raycast command: browse Auth0 tenant logs with text search, date range filters, and time presets. */
 export default function ViewLogs() {
+  const { tenantId, tenant, tenants, switchTenant, isLoading: tenantsLoading } = useActiveTenant();
   const [searchText, setSearchText] = useState("");
-  const [logs, setLogs] = useCachedState<LogEntry[]>("logs", []);
+  const [logs, setLogs] = useCachedState<LogEntry[]>(`logs-${tenantId}`, []);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [dateFrom, setDateFrom] = useState<Date | null>(null);
   const [dateTo, setDateTo] = useState<Date | null>(null);
-  const { tenantId, tenant, tenants, switchTenant, isLoading: tenantsLoading } = useActiveTenant();
   const prevTenantId = useRef(tenantId);
 
   const hasDateFilter = dateFrom !== null || dateTo !== null;
   const filterLabel = formatFilterLabel(dateFrom, dateTo);
-  const navigationTitle = filterLabel ? `View Logs — ${filterLabel}` : "View Logs";
+  const navigationTitle = filterLabel ? `View Logs \u2014 ${filterLabel}` : "View Logs";
+  const domain = tenant?.domain;
+  const domainParts = domain?.split(".") ?? [];
+  const tenantSlug = domainParts[0];
+  const region = domainParts.length >= 4 ? domainParts[1] : "us";
 
   function applyPreset(preset: "1h" | "24h" | "7d" | "30d") {
     const now = new Date();
@@ -235,10 +242,6 @@ export default function ViewLogs() {
     return () => clearTimeout(timer);
   }, [searchText, fetchLogs, tenantId, tenant, dateFrom, dateTo]);
 
-  const handleTenantChange = (newId: string) => {
-    switchTenant(newId);
-  };
-
   if (error && !logs.length) {
     return (
       <List>
@@ -265,13 +268,7 @@ export default function ViewLogs() {
       onSearchTextChange={setSearchText}
       searchBarPlaceholder="Search logs by user, client, or description..."
       navigationTitle={navigationTitle}
-      searchBarAccessory={
-        <List.Dropdown tooltip="Switch Tenant" value={tenantId} onChange={handleTenantChange}>
-          {tenants.map((t) => (
-            <List.Dropdown.Item key={t.id} title={`${t.name + " " + t.environment || "not configured"}`} value={t.id} />
-          ))}
-        </List.Dropdown>
-      }
+      searchBarAccessory={<TenantDropdown tenantId={tenantId} tenants={tenants} onTenantChange={switchTenant} />}
     >
       {logs.length === 0 && !isLoading && (
         <List.EmptyView
@@ -306,7 +303,7 @@ export default function ViewLogs() {
                 {tenant?.domain && (
                   <Action.OpenInBrowser
                     title="Open in Auth0 Dashboard"
-                    url={`https://${tenant.domain}/admin/logs`}
+                    url={`https://manage.auth0.com/dashboard/${region}/${tenantSlug}/logs/${log.log_id}/`}
                     shortcut={{ modifiers: ["cmd"], key: "o" }}
                   />
                 )}
@@ -349,7 +346,7 @@ export default function ViewLogs() {
                   <Action title="Last 7 Days" onAction={() => applyPreset("7d")} />
                   <Action title="Last 30 Days" onAction={() => applyPreset("30d")} />
                   <Action.Push
-                    title="Custom Range…"
+                    title="Custom Range\u2026"
                     icon={Icon.Pencil}
                     target={
                       <CustomTimeRangeForm

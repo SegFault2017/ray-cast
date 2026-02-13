@@ -5,21 +5,21 @@ import { getBlockedUsers, unblockUser, getAuth0ErrorMessage } from "./utils/auth
 import { isTenantConfigured } from "./utils/tenant-storage";
 import { useActiveTenant } from "./utils/use-active-tenant";
 import { User } from "./utils/types";
+import { formatDate } from "./utils/formatting";
 import UserDetail from "./components/UserDetail";
-
-/** Format an ISO date string as a localized date, or "Never" if absent. */
-function formatDate(dateString?: string): string {
-  if (!dateString) return "Never";
-  return new Date(dateString).toLocaleDateString();
-}
+import TenantDropdown from "./components/TenantDropdown";
 
 /** Raycast command: list blocked Auth0 users with the ability to unblock them. */
 export default function ViewBlockedUsers() {
-  const [blockedUsers, setBlockedUsers] = useCachedState<User[]>("blocked-users", []);
+  const { tenantId, tenant, tenants, switchTenant, isLoading: tenantsLoading } = useActiveTenant();
+  const [blockedUsers, setBlockedUsers] = useCachedState<User[]>(`blocked-users-${tenantId}`, []);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { tenantId, tenant, tenants, switchTenant, isLoading: tenantsLoading } = useActiveTenant();
   const prevTenantId = useRef(tenantId);
+  const domain = tenant?.domain;
+  const domainParts = domain?.split(".") ?? [];
+  const tenantSlug = domainParts[0];
+  const region = domainParts.length >= 4 ? domainParts[1] : "us";
 
   const fetchBlockedUsers = useCallback(async () => {
     if (!tenant) return;
@@ -54,10 +54,6 @@ export default function ViewBlockedUsers() {
     fetchBlockedUsers();
   }, [fetchBlockedUsers, tenantId, tenant]);
 
-  const handleTenantChange = (newId: string) => {
-    switchTenant(newId);
-  };
-
   const handleUnblock = async (user: User) => {
     if (!tenant) return;
 
@@ -69,7 +65,7 @@ export default function ViewBlockedUsers() {
     if (!confirmed) return;
 
     try {
-      await showToast({ style: Toast.Style.Animated, title: "Unblocking user…" });
+      await showToast({ style: Toast.Style.Animated, title: "Unblocking user\u2026" });
       await unblockUser(tenant, user.user_id);
       await showToast({ style: Toast.Style.Success, title: "User Unblocked", message: user.email });
       await fetchBlockedUsers();
@@ -104,13 +100,7 @@ export default function ViewBlockedUsers() {
       isLoading={isLoading || tenantsLoading}
       searchBarPlaceholder="Filter blocked users..."
       navigationTitle="View Blocked Users"
-      searchBarAccessory={
-        <List.Dropdown tooltip="Switch Tenant" value={tenantId} onChange={handleTenantChange}>
-          {tenants.map((t) => (
-            <List.Dropdown.Item key={t.id} title={`${t.name + " " + t.environment || "not configured"}`} value={t.id} />
-          ))}
-        </List.Dropdown>
-      }
+      searchBarAccessory={<TenantDropdown tenantId={tenantId} tenants={tenants} onTenantChange={switchTenant} />}
     >
       {blockedUsers.length === 0 && !isLoading && (
         <List.EmptyView
@@ -152,7 +142,7 @@ export default function ViewBlockedUsers() {
               {tenant?.domain && (
                 <Action.OpenInBrowser
                   title="Open in Auth0 Dashboard"
-                  url={`https://${tenant.domain}/dashboard/tenant/users/${encodeURIComponent(user.user_id)}`}
+                  url={`https://manage.auth0.com/dashboard/${region}/${tenantSlug}/users/${Buffer.from(encodeURIComponent(user.user_id)).toString("base64")}`}
                   shortcut={{ modifiers: ["cmd"], key: "o" }}
                 />
               )}

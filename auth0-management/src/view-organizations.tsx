@@ -6,15 +6,20 @@ import { isTenantConfigured } from "./utils/tenant-storage";
 import { useActiveTenant } from "./utils/use-active-tenant";
 import { Organization } from "./utils/types";
 import OrganizationDetail from "./components/OrganizationDetail";
+import TenantDropdown from "./components/TenantDropdown";
 
 /** Raycast command: browse Auth0 organizations with client-side filtering and tenant switching. */
 export default function ViewOrganizations() {
+  const { tenantId, tenant, tenants, switchTenant, isLoading: tenantsLoading } = useActiveTenant();
   const [searchText, setSearchText] = useState("");
-  const [organizations, setOrganizations] = useCachedState<Organization[]>("organizations", []);
+  const [organizations, setOrganizations] = useCachedState<Organization[]>(`organizations-${tenantId}`, []);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { tenantId, tenant, tenants, switchTenant, isLoading: tenantsLoading } = useActiveTenant();
   const prevTenantId = useRef(tenantId);
+  const domain = tenant?.domain;
+  const domainParts = domain?.split(".") ?? [];
+  const tenantSlug = domainParts[0];
+  const region = domainParts.length >= 4 ? domainParts[1] : "us";
 
   const fetchOrganizations = useCallback(async () => {
     if (!tenant) return;
@@ -53,10 +58,6 @@ export default function ViewOrganizations() {
     fetchOrganizations();
   }, [fetchOrganizations, tenantId, tenant]);
 
-  const handleTenantChange = (newId: string) => {
-    switchTenant(newId);
-  };
-
   const filtered = organizations.filter((org) => {
     if (!searchText) return true;
     const term = searchText.toLowerCase();
@@ -89,13 +90,7 @@ export default function ViewOrganizations() {
       onSearchTextChange={setSearchText}
       searchBarPlaceholder="Filter organizations..."
       navigationTitle="View Organizations"
-      searchBarAccessory={
-        <List.Dropdown tooltip="Switch Tenant" value={tenantId} onChange={handleTenantChange}>
-          {tenants.map((t) => (
-            <List.Dropdown.Item key={t.id} title={`${t.name + " " + t.environment || "not configured"}`} value={t.id} />
-          ))}
-        </List.Dropdown>
-      }
+      searchBarAccessory={<TenantDropdown tenantId={tenantId} tenants={tenants} onTenantChange={switchTenant} />}
     >
       {filtered.length === 0 && !isLoading && (
         <List.EmptyView
@@ -131,7 +126,7 @@ export default function ViewOrganizations() {
               {tenant?.domain && (
                 <Action.OpenInBrowser
                   title="Open in Auth0 Dashboard"
-                  url={`https://${tenant.domain}/admin/organizations/${org.id}/overview`}
+                  url={`https://manage.auth0.com/dashboard/${region}/${tenantSlug}/organizations/${org.id}/overview`}
                   shortcut={{ modifiers: ["cmd"], key: "o" }}
                 />
               )}

@@ -1,21 +1,10 @@
 import { Detail, ActionPanel, Action } from "@raycast/api";
 import { Auth0App, Tenant } from "../utils/types";
+import { escapeTableCell, APP_TYPE_LABELS } from "../utils/formatting";
 
 interface AppDetailProps {
   app: Auth0App;
   tenant: Tenant;
-}
-
-const APP_TYPE_LABELS: Record<string, string> = {
-  non_interactive: "Machine to Machine",
-  spa: "Single Page App",
-  regular_web: "Regular Web App",
-  native: "Native",
-};
-
-/** Replace pipe characters with a Unicode box-drawing character to avoid breaking markdown tables. */
-function escapeTableCell(value: string): string {
-  return value.replace(/\|/g, "\u2502");
 }
 
 function renderUrlList(title: string, urls?: string[]): string {
@@ -52,7 +41,10 @@ ${app.logo_uri ? `![Logo](${app.logo_uri})` : ""}
 | **Grant Types** | ${grantTypes} |
 ${renderUrlList("Callbacks", app.callbacks)}${renderUrlList("Allowed Origins", app.allowed_origins)}${renderUrlList("Web Origins", app.web_origins)}${renderUrlList("Allowed Logout URLs", app.allowed_logout_urls)}${metadataSection}`;
 
-  const dashboardUrl = `https://${domain}/admin/applications/${app.client_id}/settings`;
+  const domainParts = domain.split(".");
+  const tenantSlug = domainParts[0];
+  const region = domainParts.length >= 4 ? domainParts[1] : "us";
+  const dashboardUrl = `https://manage.auth0.com/dashboard/${region}/${tenantSlug}/applications/${app.client_id}/settings`;
 
   return (
     <Detail
