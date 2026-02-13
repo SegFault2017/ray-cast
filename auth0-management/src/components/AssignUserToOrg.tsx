@@ -1,20 +1,16 @@
 import { List, ActionPanel, Action, showToast, Toast, Icon, Image, useNavigation } from "@raycast/api";
 import { useState, useEffect, useCallback, useRef } from "react";
-import { searchUsers, addMembersToOrganization, getOrganizationMembers } from "../utils/auth0-client";
+import {
+  searchUsers,
+  addMembersToOrganization,
+  getOrganizationMembers,
+  getAuth0ErrorMessage,
+} from "../utils/auth0-client";
 import { Organization, Tenant, User } from "../utils/types";
 
 interface AssignUserToOrgProps {
   tenant: Tenant;
   organization: Organization;
-}
-
-/** Extract a user-friendly error message from an Auth0 SDK error or generic Error. */
-function getErrorMessage(err: unknown): string {
-  if (err != null && typeof err === "object" && "body" in err) {
-    const body = (err as { body?: { message?: string } }).body;
-    if (body?.message) return body.message;
-  }
-  return err instanceof Error ? err.message : "Unknown error";
 }
 
 /** Search and assign users to an organization, excluding already-assigned members. */
@@ -48,7 +44,7 @@ export default function AssignUserToOrg({ tenant, organization }: AssignUserToOr
         if (!cancelled) setUsers(results);
       } catch (err) {
         if (!cancelled) {
-          showToast({ style: Toast.Style.Failure, title: "Search Failed", message: getErrorMessage(err) });
+          showToast({ style: Toast.Style.Failure, title: "Search Failed", message: getAuth0ErrorMessage(err) });
         }
       } finally {
         if (!cancelled) setIsLoading(false);
@@ -68,7 +64,7 @@ export default function AssignUserToOrg({ tenant, organization }: AssignUserToOr
         const results = await searchUsers(tenant, term);
         setUsers(results);
       } catch (err) {
-        showToast({ style: Toast.Style.Failure, title: "Search Failed", message: getErrorMessage(err) });
+        showToast({ style: Toast.Style.Failure, title: "Search Failed", message: getAuth0ErrorMessage(err) });
       } finally {
         setIsLoading(false);
       }
@@ -99,7 +95,7 @@ export default function AssignUserToOrg({ tenant, organization }: AssignUserToOr
         });
         pop();
       } catch (err) {
-        showToast({ style: Toast.Style.Failure, title: "Assignment Failed", message: getErrorMessage(err) });
+        showToast({ style: Toast.Style.Failure, title: "Assignment Failed", message: getAuth0ErrorMessage(err) });
       }
     },
     [tenant, organization, pop],

@@ -1,15 +1,11 @@
 import { Detail, ActionPanel, Action, Icon } from "@raycast/api";
 import { Organization, Tenant } from "../utils/types";
 import AssignUserToOrg from "./AssignUserToOrg";
+import { escapeTableCell } from "../utils/formatting";
 
 interface OrganizationDetailProps {
   organization: Organization;
   tenant: Tenant;
-}
-
-/** Replace pipe characters with a Unicode box-drawing character to avoid breaking markdown tables. */
-function escapeTableCell(value: string): string {
-  return value.replace(/\|/g, "\u2502");
 }
 
 /** Detail view showing an organization's metadata, branding, and action to assign users. */

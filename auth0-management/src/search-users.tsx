@@ -5,25 +5,23 @@ import { searchUsers } from "./utils/auth0-client";
 import { isTenantConfigured } from "./utils/tenant-storage";
 import { useActiveTenant } from "./utils/use-active-tenant";
 import { User } from "./utils/types";
+import { formatDate } from "./utils/formatting";
 import UserDetail from "./components/UserDetail";
 import SessionDetail from "./components/SessionDetail";
 import ViewBlockedUsers from "./view-blocked-users";
-
-/** Format an ISO date string as a localized date, or "Never" if absent. */
-function formatDate(dateString?: string): string {
-  if (!dateString) return "Never";
-  const date = new Date(dateString);
-  return date.toLocaleDateString();
-}
+import TenantDropdown from "./components/TenantDropdown";
 
 /** Raycast command: search Auth0 users by name, email, or user ID with a tenant dropdown. */
 export default function SearchUsers() {
+  const { tenantId, tenant, tenants, switchTenant, isLoading: tenantsLoading } = useActiveTenant();
   const [searchText, setSearchText] = useState("");
-  const [users, setUsers] = useCachedState<User[]>("users", []);
+  const [users, setUsers] = useCachedState<User[]>(`users-${tenantId}`, []);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { tenantId, tenant, tenants, switchTenant, isLoading: tenantsLoading } = useActiveTenant();
   const prevTenantId = useRef(tenantId);
+  const domainParts = tenant?.domain.split(".") ?? [];
+  const tenantSlug = domainParts[0];
+  const region = domainParts.length >= 4 ? domainParts[1] : "us";
 
   const doSearch = useCallback(
     async (term: string) => {
@@ -70,10 +68,6 @@ export default function SearchUsers() {
     return () => clearTimeout(timer);
   }, [searchText, doSearch, tenantId, tenant]);
 
-  const handleTenantChange = (newId: string) => {
-    switchTenant(newId);
-  };
-
   if (error && !users.length) {
     return (
       <List>
@@ -100,13 +94,7 @@ export default function SearchUsers() {
       onSearchTextChange={setSearchText}
       searchBarPlaceholder="Search by name, email, or user ID..."
       navigationTitle="Search Users"
-      searchBarAccessory={
-        <List.Dropdown tooltip="Switch Tenant" value={tenantId} onChange={handleTenantChange}>
-          {tenants.map((t) => (
-            <List.Dropdown.Item key={t.id} title={`${t.name + " " + t.environment || "not configured"}`} value={t.id} />
-          ))}
-        </List.Dropdown>
-      }
+      searchBarAccessory={<TenantDropdown tenantId={tenantId} tenants={tenants} onTenantChange={switchTenant} />}
     >
       {users.length === 0 && !isLoading && (
         <List.EmptyView
@@ -152,7 +140,7 @@ export default function SearchUsers() {
               {tenant?.domain && (
                 <Action.OpenInBrowser
                   title="Open in Auth0 Dashboard"
-                  url={`https://${tenant.domain}/dashboard/tenant/users/${encodeURIComponent(user.user_id)}`}
+                  url={`https://manage.auth0.com/dashboard/${region}/${tenantSlug}/users/${Buffer.from(encodeURIComponent(user.user_id)).toString("base64")}`}
                   shortcut={{ modifiers: ["cmd"], key: "o" }}
                 />
               )}

@@ -6,15 +6,19 @@ import { isTenantConfigured } from "./utils/tenant-storage";
 import { useActiveTenant } from "./utils/use-active-tenant";
 import { ResourceServer } from "./utils/types";
 import ApiDetail from "./components/ApiDetail";
+import TenantDropdown from "./components/TenantDropdown";
 
 /** Raycast command: browse Auth0 APIs (resource servers) with client-side filtering and tenant switching. */
 export default function ViewApis() {
+  const { tenantId, tenant, tenants, switchTenant, isLoading: tenantsLoading } = useActiveTenant();
   const [searchText, setSearchText] = useState("");
-  const [apis, setApis] = useCachedState<ResourceServer[]>("apis", []);
+  const [apis, setApis] = useCachedState<ResourceServer[]>(`apis-${tenantId}`, []);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { tenantId, tenant, tenants, switchTenant, isLoading: tenantsLoading } = useActiveTenant();
   const prevTenantId = useRef(tenantId);
+  const domain = tenant?.domain;
+  const domainParts = domain?.split(".") ?? [];
+  const region = domainParts.length >= 4 ? domainParts[1] : "us";
 
   const fetchApis = useCallback(async () => {
     if (!tenant) return;
@@ -53,10 +57,6 @@ export default function ViewApis() {
     fetchApis();
   }, [fetchApis, tenantId, tenant]);
 
-  const handleTenantChange = (newId: string) => {
-    switchTenant(newId);
-  };
-
   const filtered = apis.filter((api) => {
     if (!searchText) return true;
     const term = searchText.toLowerCase();
@@ -89,13 +89,7 @@ export default function ViewApis() {
       onSearchTextChange={setSearchText}
       searchBarPlaceholder="Filter APIs..."
       navigationTitle="View APIs"
-      searchBarAccessory={
-        <List.Dropdown tooltip="Switch Tenant" value={tenantId} onChange={handleTenantChange}>
-          {tenants.map((t) => (
-            <List.Dropdown.Item key={t.id} title={`${t.name + " " + t.environment || "not configured"}`} value={t.id} />
-          ))}
-        </List.Dropdown>
-      }
+      searchBarAccessory={<TenantDropdown tenantId={tenantId} tenants={tenants} onTenantChange={switchTenant} />}
     >
       {filtered.length === 0 && !isLoading && (
         <List.EmptyView
@@ -122,7 +116,7 @@ export default function ViewApis() {
               {tenant?.domain && (
                 <Action.OpenInBrowser
                   title="Open in Auth0 Dashboard"
-                  url={`https://${tenant.domain}/admin/apis/${api.id}/settings`}
+                  url={`https://manage.auth0.com/dashboard/${region}/${domainParts[0]}/apis/${api.id}/settings`}
                   shortcut={{ modifiers: ["cmd"], key: "o" }}
                 />
               )}

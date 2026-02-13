@@ -8,21 +8,11 @@ import {
   getAuth0ErrorMessage,
 } from "../utils/auth0-client";
 import { Session, Tenant, User, UserGrant } from "../utils/types";
+import { escapeTableCell, formatDateTime } from "../utils/formatting";
 
 interface SessionDetailProps {
   user: User;
   tenant: Tenant;
-}
-
-/** Format an ISO date string as a localized date+time, or "—" if absent. */
-function formatDate(dateString?: string): string {
-  if (!dateString) return "—";
-  return new Date(dateString).toLocaleString();
-}
-
-/** Replace pipe characters with a Unicode box-drawing character to avoid breaking markdown tables. */
-function escapeTableCell(value: string): string {
-  return value.replace(/\|/g, "\u2502");
 }
 
 /** Detail view showing a user's active sessions and OAuth2 grants, with revocation actions. */
@@ -61,7 +51,7 @@ export default function SessionDetail({ user, tenant }: SessionDetailProps) {
     if (!confirmed) return;
 
     try {
-      await showToast({ style: Toast.Style.Animated, title: "Revoking sessions…" });
+      await showToast({ style: Toast.Style.Animated, title: "Revoking sessions\u2026" });
       await revokeUserSessions(tenant, user.user_id);
       await showToast({ style: Toast.Style.Success, title: "Sessions Revoked" });
       await fetchData();
@@ -81,7 +71,7 @@ export default function SessionDetail({ user, tenant }: SessionDetailProps) {
     if (!confirmed) return;
 
     try {
-      await showToast({ style: Toast.Style.Animated, title: "Revoking grant…" });
+      await showToast({ style: Toast.Style.Animated, title: "Revoking grant\u2026" });
       await revokeGrant(tenant, grant.id);
       await showToast({ style: Toast.Style.Success, title: "Grant Revoked" });
       await fetchData();
@@ -95,10 +85,10 @@ export default function SessionDetail({ user, tenant }: SessionDetailProps) {
   if (sessions.length > 0) {
     const header = "| Session ID | Created | Last Activity | Expires | IP | User Agent |\n|---|---|---|---|---|---|";
     const rows = sessions.map((s) => {
-      const ip = s.device?.last_ip || s.device?.initial_ip || "—";
-      const ua = s.device?.last_user_agent || s.device?.initial_user_agent || "—";
-      const truncatedUa = ua.length > 40 ? ua.substring(0, 40) + "…" : ua;
-      return `| ${escapeTableCell(s.id || "—")} | ${formatDate(s.created_at)} | ${formatDate(s.last_interacted_at)} | ${formatDate(s.expires_at)} | ${escapeTableCell(String(ip))} | ${escapeTableCell(truncatedUa)} |`;
+      const ip = s.device?.last_ip || s.device?.initial_ip || "\u2014";
+      const ua = s.device?.last_user_agent || s.device?.initial_user_agent || "\u2014";
+      const truncatedUa = ua.length > 40 ? ua.substring(0, 40) + "\u2026" : ua;
+      return `| ${escapeTableCell(s.id || "\u2014")} | ${formatDateTime(s.created_at)} | ${formatDateTime(s.last_interacted_at)} | ${formatDateTime(s.expires_at)} | ${escapeTableCell(String(ip))} | ${escapeTableCell(truncatedUa)} |`;
     });
     sessionsSection = `${header}\n${rows.join("\n")}`;
   } else {
@@ -109,8 +99,8 @@ export default function SessionDetail({ user, tenant }: SessionDetailProps) {
   if (grants.length > 0) {
     const header = "| Grant ID | Client ID | Audience | Scopes |\n|---|---|---|---|";
     const rows = grants.map((g) => {
-      const scopes = g.scope?.join(", ") || "—";
-      return `| ${escapeTableCell(g.id || "—")} | ${escapeTableCell(g.clientID || "—")} | ${escapeTableCell(g.audience || "—")} | ${escapeTableCell(scopes)} |`;
+      const scopes = g.scope?.join(", ") || "\u2014";
+      return `| ${escapeTableCell(g.id || "\u2014")} | ${escapeTableCell(g.clientID || "\u2014")} | ${escapeTableCell(g.audience || "\u2014")} | ${escapeTableCell(scopes)} |`;
     });
     grantsSection = `${header}\n${rows.join("\n")}`;
   } else {
