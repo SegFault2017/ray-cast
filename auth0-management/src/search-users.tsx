@@ -67,7 +67,7 @@ export default function SearchUsers() {
   }, [searchText, doSearch, tenantId, tenant]);
 
   const handleCreateUser = useCallback(
-    async (values: { email: string; password: string; connection: string }) => {
+    async (values: { email: string; password: string; connection: string; name?: string }) => {
       if (!tenant) return;
       try {
         await createUser(tenant, values);
@@ -79,7 +79,6 @@ export default function SearchUsers() {
           title: "Failed to Create User",
           message: getAuth0ErrorMessage(err, "create:users"),
         });
-        throw err;
       }
     },
     [tenant, doSearch, searchText],

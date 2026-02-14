@@ -1,17 +1,18 @@
 import { Form, ActionPanel, Action, useNavigation } from "@raycast/api";
-import { useForm, FormValidation, usePromise } from "@raycast/utils";
+import { useForm, usePromise } from "@raycast/utils";
 import { useState } from "react";
 import { listConnections } from "../utils/auth0-client";
 import { TenantConfig } from "../utils/types";
 
 interface CreateUserFormValues {
   email: string;
+  name: string;
   connection: string;
 }
 
 interface CreateUserFormProps {
   tenant: TenantConfig;
-  onSubmit: (values: { email: string; password: string; connection: string }) => Promise<void>;
+  onSubmit: (values: { email: string; password: string; connection: string; name?: string }) => Promise<void>;
 }
 
 /** Form for creating a new Auth0 user on a database connection. */
@@ -28,15 +29,18 @@ export default function CreateUserForm({ tenant, onSubmit }: CreateUserFormProps
         setPasswordError("Required");
         return;
       }
-      await onSubmit({ ...values, password });
+      await onSubmit({ ...values, password, name: values.name || undefined });
       pop();
     },
-    initialValues: {
-      connection: "Username-Password-Authentication",
-    },
+    initialValues: {},
     validation: {
-      email: FormValidation.Required,
-      connection: FormValidation.Required,
+      email: (value) => {
+        if (!value) return "Required";
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) return "Enter a valid email address";
+      },
+      connection: (value) => {
+        if (!value) return "Required";
+      },
     },
   });
 
@@ -51,6 +55,7 @@ export default function CreateUserForm({ tenant, onSubmit }: CreateUserFormProps
       }
     >
       <Form.TextField title="Email" placeholder="user@example.com" {...itemProps.email} />
+      <Form.TextField title="Name" placeholder="John Doe (optional)" {...itemProps.name} />
       <Form.PasswordField
         id="password"
         title="Password"

@@ -206,13 +206,14 @@ export async function listConnections(
 /** Create a new Auth0 user on the given connection. */
 export async function createUser(
   config: TenantConfig,
-  data: { email: string; password: string; connection: string },
+  data: { email: string; password: string; connection: string; name?: string },
 ): Promise<User> {
   const client = getClient(config);
   const response = await client.users.create({
     email: data.email,
     password: data.password,
     connection: data.connection,
+    ...(data.name && { name: data.name }),
   });
   return response as unknown as User;
 }
