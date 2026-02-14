@@ -42,10 +42,30 @@ ${JSON.stringify(log.details, null, 2) || "{}"}
       navigationTitle={`Log: ${log.type || "Unknown"}`}
       actions={
         <ActionPanel>
-          {log.log_id && <Action.CopyToClipboard title="Copy Log ID" content={log.log_id} />}
-          {log.user_id && <Action.CopyToClipboard title="Copy User ID" content={log.user_id} />}
-          <Action.OpenInBrowser title="Open in Auth0 Dashboard" url={dashboardUrl} />
-          <Action.CopyToClipboard title="Copy Log JSON" content={JSON.stringify(log, null, 2)} />
+          {log.log_id && (
+            <Action.CopyToClipboard
+              title="Copy Log ID"
+              content={log.log_id}
+              shortcut={{ modifiers: ["cmd"], key: "." }}
+            />
+          )}
+          {log.user_id && (
+            <Action.CopyToClipboard
+              title="Copy User ID"
+              content={log.user_id}
+              shortcut={{ modifiers: ["cmd", "shift"], key: "." }}
+            />
+          )}
+          <Action.OpenInBrowser
+            title="Open in Auth0 Dashboard"
+            url={dashboardUrl}
+            shortcut={{ modifiers: ["cmd"], key: "o" }}
+          />
+          <Action.CopyToClipboard
+            title="Copy Log JSON"
+            content={JSON.stringify(log, null, 2)}
+            shortcut={{ modifiers: ["cmd", "shift"], key: "c" }}
+          />
         </ActionPanel>
       }
     />

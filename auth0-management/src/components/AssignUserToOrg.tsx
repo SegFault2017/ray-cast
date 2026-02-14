@@ -28,26 +28,26 @@ export default function AssignUserToOrg({ tenant, organization }: AssignUserToOr
 
     async function init() {
       setIsLoading(true);
-      try {
-        const members = await getOrganizationMembers(tenant, organization.id);
-        if (!cancelled) {
-          setMemberIds(new Set(members.map((m) => m.user_id)));
-        }
-      } catch {
-        // If we can't fetch members, continue — show all users
-      }
-      membersReady.current = true;
+      const [membersResult, usersResult] = await Promise.allSettled([
+        getOrganizationMembers(tenant, organization.id),
+        searchUsers(tenant, ""),
+      ]);
 
-      // Do the initial empty search after members are loaded
-      try {
-        const results = await searchUsers(tenant, "");
-        if (!cancelled) setUsers(results);
-      } catch (err) {
-        if (!cancelled) {
-          showToast({ style: Toast.Style.Failure, title: "Search Failed", message: getAuth0ErrorMessage(err) });
+      if (!cancelled) {
+        if (membersResult.status === "fulfilled") {
+          setMemberIds(new Set(membersResult.value.map((m) => m.user_id)));
         }
-      } finally {
-        if (!cancelled) setIsLoading(false);
+        if (usersResult.status === "fulfilled") {
+          setUsers(usersResult.value);
+        } else {
+          showToast({
+            style: Toast.Style.Failure,
+            title: "Search Failed",
+            message: getAuth0ErrorMessage(usersResult.reason),
+          });
+        }
+        membersReady.current = true;
+        setIsLoading(false);
       }
     }
 
@@ -130,7 +130,11 @@ export default function AssignUserToOrg({ tenant, organization }: AssignUserToOr
           actions={
             <ActionPanel>
               <Action title="Assign to Organization" icon={Icon.AddPerson} onAction={() => handleAssign(user)} />
-              <Action.CopyToClipboard title="Copy User ID" content={user.user_id} />
+              <Action.CopyToClipboard
+                title="Copy User ID"
+                content={user.user_id}
+                shortcut={{ modifiers: ["cmd"], key: "." }}
+              />
             </ActionPanel>
           }
         />

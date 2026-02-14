@@ -49,10 +49,26 @@ ${organization.branding?.logo_url ? `![Logo](${organization.branding.logo_url})`
             icon={Icon.AddPerson}
             target={<AssignUserToOrg tenant={tenant} organization={organization} />}
           />
-          <Action.CopyToClipboard title="Copy Org ID" content={organization.id} />
-          <Action.CopyToClipboard title="Copy Org Name" content={organization.name} />
-          <Action.OpenInBrowser title="Open in Auth0 Dashboard" url={dashboardUrl} />
-          <Action.CopyToClipboard title="Copy Org JSON" content={JSON.stringify(organization, null, 2)} />
+          <Action.CopyToClipboard
+            title="Copy Org ID"
+            content={organization.id}
+            shortcut={{ modifiers: ["cmd"], key: "." }}
+          />
+          <Action.CopyToClipboard
+            title="Copy Org Name"
+            content={organization.name}
+            shortcut={{ modifiers: ["cmd", "shift"], key: "." }}
+          />
+          <Action.OpenInBrowser
+            title="Open in Auth0 Dashboard"
+            url={dashboardUrl}
+            shortcut={{ modifiers: ["cmd"], key: "o" }}
+          />
+          <Action.CopyToClipboard
+            title="Copy Org JSON"
+            content={JSON.stringify(organization, null, 2)}
+            shortcut={{ modifiers: ["cmd", "shift"], key: "c" }}
+          />
         </ActionPanel>
       }
     />

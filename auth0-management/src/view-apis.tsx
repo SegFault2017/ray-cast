@@ -1,10 +1,11 @@
 import { List, ActionPanel, Action, showToast, Toast, Icon } from "@raycast/api";
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useCachedState } from "@raycast/utils";
-import { listResourceServers } from "./utils/auth0-client";
+import { listResourceServers, getAuth0ErrorMessage } from "./utils/auth0-client";
 import { isTenantConfigured } from "./utils/tenant-storage";
 import { useActiveTenant } from "./utils/use-active-tenant";
 import { ResourceServer } from "./utils/types";
+import { parseTenantDomain } from "./utils/formatting";
 import ApiDetail from "./components/ApiDetail";
 import TenantDropdown from "./components/TenantDropdown";
 
@@ -16,9 +17,7 @@ export default function ViewApis() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const prevTenantId = useRef(tenantId);
-  const domain = tenant?.domain;
-  const domainParts = domain?.split(".") ?? [];
-  const region = domainParts.length >= 4 ? domainParts[1] : "us";
+  const { tenantSlug, region } = parseTenantDomain(tenant?.domain ?? "");
 
   const fetchApis = useCallback(async () => {
     if (!tenant) return;
@@ -35,7 +34,7 @@ export default function ViewApis() {
       const results = await listResourceServers(tenant);
       setApis(results);
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to fetch APIs";
+      const message = getAuth0ErrorMessage(err, "read:resource_servers");
       setError(message);
       showToast({
         style: Toast.Style.Failure,
@@ -57,11 +56,15 @@ export default function ViewApis() {
     fetchApis();
   }, [fetchApis, tenantId, tenant]);
 
-  const filtered = apis.filter((api) => {
-    if (!searchText) return true;
-    const term = searchText.toLowerCase();
-    return (api.name?.toLowerCase().includes(term) ?? false) || api.identifier.toLowerCase().includes(term);
-  });
+  const filtered = useMemo(
+    () =>
+      apis.filter((api) => {
+        if (!searchText) return true;
+        const term = searchText.toLowerCase();
+        return (api.name?.toLowerCase().includes(term) ?? false) || api.identifier.toLowerCase().includes(term);
+      }),
+    [apis, searchText],
+  );
 
   if (error && !apis.length) {
     return (
@@ -116,7 +119,7 @@ export default function ViewApis() {
               {tenant?.domain && (
                 <Action.OpenInBrowser
                   title="Open in Auth0 Dashboard"
-                  url={`https://manage.auth0.com/dashboard/${region}/${domainParts[0]}/apis/${api.id}/settings`}
+                  url={`https://manage.auth0.com/dashboard/${region}/${tenantSlug}/apis/${api.id}/settings`}
                   shortcut={{ modifiers: ["cmd"], key: "o" }}
                 />
               )}

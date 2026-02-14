@@ -1,13 +1,14 @@
 import { List, ActionPanel, Action, showToast, Toast, Icon, Color, Image } from "@raycast/api";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useCachedState } from "@raycast/utils";
-import { searchUsers } from "./utils/auth0-client";
+import { searchUsers, createUser, getAuth0ErrorMessage } from "./utils/auth0-client";
 import { isTenantConfigured } from "./utils/tenant-storage";
 import { useActiveTenant } from "./utils/use-active-tenant";
 import { User } from "./utils/types";
-import { formatDate } from "./utils/formatting";
+import { formatDate, buildUserDashboardUrl } from "./utils/formatting";
 import UserDetail from "./components/UserDetail";
 import SessionDetail from "./components/SessionDetail";
+import CreateUserForm from "./components/CreateUserForm";
 import ViewBlockedUsers from "./view-blocked-users";
 import TenantDropdown from "./components/TenantDropdown";
 
@@ -19,9 +20,6 @@ export default function SearchUsers() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const prevTenantId = useRef(tenantId);
-  const domainParts = tenant?.domain.split(".") ?? [];
-  const tenantSlug = domainParts[0];
-  const region = domainParts.length >= 4 ? domainParts[1] : "us";
 
   const doSearch = useCallback(
     async (term: string) => {
@@ -39,7 +37,7 @@ export default function SearchUsers() {
         const results = await searchUsers(tenant, term);
         setUsers(results);
       } catch (err) {
-        const message = err instanceof Error ? err.message : "Failed to search users";
+        const message = getAuth0ErrorMessage(err, "read:users");
         setError(message);
         showToast({
           style: Toast.Style.Failure,
@@ -67,6 +65,25 @@ export default function SearchUsers() {
 
     return () => clearTimeout(timer);
   }, [searchText, doSearch, tenantId, tenant]);
+
+  const handleCreateUser = useCallback(
+    async (values: { email: string; password: string; connection: string }) => {
+      if (!tenant) return;
+      try {
+        await createUser(tenant, values);
+        showToast({ style: Toast.Style.Success, title: "User Created", message: values.email });
+        doSearch(searchText);
+      } catch (err) {
+        showToast({
+          style: Toast.Style.Failure,
+          title: "Failed to Create User",
+          message: getAuth0ErrorMessage(err, "create:users"),
+        });
+        throw err;
+      }
+    },
+    [tenant, doSearch, searchText],
+  );
 
   if (error && !users.length) {
     return (
@@ -101,6 +118,15 @@ export default function SearchUsers() {
           icon={Icon.MagnifyingGlass}
           title="No Users Found"
           description={searchText ? "Try a different search term" : "Start typing to search users"}
+          actions={
+            <ActionPanel>
+              <Action.Push
+                title="Create User"
+                icon={Icon.AddPerson}
+                target={<CreateUserForm tenant={tenant!} onSubmit={handleCreateUser} />}
+              />
+            </ActionPanel>
+          }
         />
       )}
       {users.map((user) => (
@@ -140,7 +166,7 @@ export default function SearchUsers() {
               {tenant?.domain && (
                 <Action.OpenInBrowser
                   title="Open in Auth0 Dashboard"
-                  url={`https://manage.auth0.com/dashboard/${region}/${tenantSlug}/users/${Buffer.from(encodeURIComponent(user.user_id)).toString("base64")}`}
+                  url={buildUserDashboardUrl(tenant.domain, user.user_id)}
                   shortcut={{ modifiers: ["cmd"], key: "o" }}
                 />
               )}
@@ -155,6 +181,12 @@ export default function SearchUsers() {
                 icon={Icon.ArrowClockwise}
                 shortcut={{ modifiers: ["cmd"], key: "r" }}
                 onAction={() => doSearch(searchText)}
+              />
+              <Action.Push
+                title="Create User"
+                icon={Icon.AddPerson}
+                target={<CreateUserForm tenant={tenant!} onSubmit={handleCreateUser} />}
+                shortcut={{ modifiers: ["cmd"], key: "n" }}
               />
             </ActionPanel>
           }
