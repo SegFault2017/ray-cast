@@ -21,7 +21,7 @@ export function buildUserDashboardUrl(domain: string, userId: string): string {
 }
 
 /** Map of Auth0 log event type codes to display metadata. */
-export const LOG_TYPE_MAP: Record<string, { label: string; icon: Icon; color: Color }> = {
+const LOG_TYPE_MAP: Record<string, { label: string; icon: Icon; color: Color }> = {
   s: { label: "Success Login", icon: Icon.CheckCircle, color: Color.Green },
   ss: { label: "Success Signup", icon: Icon.AddPerson, color: Color.Green },
   f: { label: "Failed Login", icon: Icon.XMarkCircle, color: Color.Red },
