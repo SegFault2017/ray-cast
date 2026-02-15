@@ -1,7 +1,7 @@
 import { Detail, ActionPanel, Action, Icon } from "@raycast/api";
 import { usePromise } from "@raycast/utils";
-import { Tenant, User } from "../utils/types";
-import { getUserOrganizations } from "../utils/auth0-client";
+import { Organization, Role, Tenant, User } from "../utils/types";
+import { getUserOrganizations, getUserRoles } from "../utils/auth0-client";
 import { escapeTableCell, formatDateTime } from "../utils/formatting";
 import UserLogsDetail from "./UserLogsDetail";
 
@@ -10,9 +10,18 @@ interface UserDetailProps {
   tenant: Tenant;
 }
 
-/** Detail view showing a user's full profile, identities, and organization memberships. */
+/** Detail view showing a user's full profile, identities, roles, and organization memberships. */
 export default function UserDetail({ user, tenant }: UserDetailProps) {
-  const { data: organizations, isLoading } = usePromise(getUserOrganizations, [tenant, user.user_id]);
+  const { data, isLoading } = usePromise(
+    async (t, uid) => {
+      const [orgs, roles] = await Promise.all([getUserOrganizations(t, uid), getUserRoles(t, uid)]);
+      return { organizations: orgs, roles };
+    },
+    [tenant, user.user_id],
+  );
+
+  const organizations: Organization[] = data?.organizations ?? [];
+  const roles: Role[] = data?.roles ?? [];
 
   const identities =
     user.identities && user.identities.length > 0
@@ -24,10 +33,21 @@ export default function UserDetail({ user, tenant }: UserDetailProps) {
           .join(", ")
       : "None";
 
+  let rolesSection: string;
+  if (isLoading) {
+    rolesSection = "Loading...";
+  } else if (roles.length > 0) {
+    rolesSection = roles
+      .map((role) => `- **${role.name}**${role.description ? ` — ${role.description}` : ""} (\`${role.id}\`)`)
+      .join("\n");
+  } else {
+    rolesSection = "None";
+  }
+
   let orgsSection: string;
   if (isLoading) {
     orgsSection = "Loading...";
-  } else if (organizations && organizations.length > 0) {
+  } else if (organizations.length > 0) {
     orgsSection = organizations.map((org) => `- ${org.display_name || org.name} (\`${org.id}\`)`).join("\n");
   } else {
     orgsSection = "None";
@@ -49,6 +69,10 @@ ${user.picture ? `![Avatar](${user.picture})` : ""}
 | **Login Count** | ${user.logins_count ?? 0} |
 | **Blocked** | ${user.blocked ? "Yes" : "No"} |
 | **Identities** | ${identities} |
+
+## Roles
+
+${rolesSection}
 
 ## Organizations
 

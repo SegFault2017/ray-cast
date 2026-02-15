@@ -107,6 +107,13 @@ export interface UserGrant {
   scope?: string[];
 }
 
+/** An Auth0 role assigned to a user. */
+export interface Role {
+  id: string;
+  name: string;
+  description?: string;
+}
+
 /** An Auth0 API (resource server) with its scopes and token settings. */
 export interface ResourceServer {
   id: string;

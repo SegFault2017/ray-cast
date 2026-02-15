@@ -5,6 +5,7 @@ import {
   LogEntry,
   Organization,
   ResourceServer,
+  Role,
   Session,
   TenantConfig,
   User,
@@ -83,6 +84,13 @@ export async function getUserOrganizations(config: TenantConfig, userId: string)
   const client = getClient(config);
   const response = await client.users.organizations.list(userId);
   return response.data as unknown as Organization[];
+}
+
+/** Fetch all roles assigned to a specific user. */
+export async function getUserRoles(config: TenantConfig, userId: string): Promise<Role[]> {
+  const client = getClient(config);
+  const response = await client.users.roles.list(userId, { per_page: 50, page: 0 });
+  return response.data as unknown as Role[];
 }
 
 /** List organizations for the tenant using checkpoint pagination. */
