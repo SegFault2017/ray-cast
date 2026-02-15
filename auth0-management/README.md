@@ -2,6 +2,12 @@
 
 Search and manage Auth0 users, organizations, applications, APIs, and logs across multiple tenants directly from Raycast.
 
+## Demo
+![search_user](/assets/metadata/search_user.png)
+![switch_tenant](/assets/metadata/switch_tenant.png)
+![user_detail](/assets/metadata/user_detail.png)
+![view_logs.png](/assets/metadata/view_logs.png)
+
 ## Setup
 
 ### 1. Create a Machine-to-Machine Application
