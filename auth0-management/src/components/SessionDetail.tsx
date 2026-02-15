@@ -24,11 +24,11 @@ export default function SessionDetail({ user, tenant }: SessionDetailProps) {
   const fetchData = useCallback(async () => {
     setIsLoading(true);
     try {
-      // Serialize API calls to prevent token race conditions
-      const sessionResults = await getUserSessions(tenant, user.user_id);
+      const [sessionResults, grantResults] = await Promise.all([
+        getUserSessions(tenant, user.user_id),
+        getUserGrants(tenant, user.user_id),
+      ]);
       setSessions(sessionResults);
-
-      const grantResults = await getUserGrants(tenant, user.user_id);
       setGrants(grantResults);
     } catch (err) {
       const message = getAuth0ErrorMessage(err, "read:users");
@@ -145,7 +145,11 @@ ${grantsSection}
                 />
               ),
           )}
-          <Action.CopyToClipboard title="Copy User ID" content={user.user_id} />
+          <Action.CopyToClipboard
+            title="Copy User ID"
+            content={user.user_id}
+            shortcut={{ modifiers: ["cmd"], key: "." }}
+          />
           <Action
             title="Refresh"
             icon={Icon.ArrowClockwise}

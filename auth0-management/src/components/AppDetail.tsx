@@ -1,6 +1,6 @@
 import { Detail, ActionPanel, Action } from "@raycast/api";
 import { Auth0App, Tenant } from "../utils/types";
-import { escapeTableCell, APP_TYPE_LABELS } from "../utils/formatting";
+import { escapeTableCell, APP_TYPE_LABELS, parseTenantDomain } from "../utils/formatting";
 
 interface AppDetailProps {
   app: Auth0App;
@@ -41,9 +41,7 @@ ${app.logo_uri ? `![Logo](${app.logo_uri})` : ""}
 | **Grant Types** | ${grantTypes} |
 ${renderUrlList("Callbacks", app.callbacks)}${renderUrlList("Allowed Origins", app.allowed_origins)}${renderUrlList("Web Origins", app.web_origins)}${renderUrlList("Allowed Logout URLs", app.allowed_logout_urls)}${metadataSection}`;
 
-  const domainParts = domain.split(".");
-  const tenantSlug = domainParts[0];
-  const region = domainParts.length >= 4 ? domainParts[1] : "us";
+  const { tenantSlug, region } = parseTenantDomain(domain);
   const dashboardUrl = `https://manage.auth0.com/dashboard/${region}/${tenantSlug}/applications/${app.client_id}/settings`;
 
   return (
@@ -52,9 +50,21 @@ ${renderUrlList("Callbacks", app.callbacks)}${renderUrlList("Allowed Origins", a
       navigationTitle={app.name ?? "App Detail"}
       actions={
         <ActionPanel>
-          <Action.CopyToClipboard title="Copy Client ID" content={app.client_id} />
-          <Action.OpenInBrowser title="Open in Auth0 Dashboard" url={dashboardUrl} />
-          <Action.CopyToClipboard title="Copy App JSON" content={JSON.stringify(app, null, 2)} />
+          <Action.CopyToClipboard
+            title="Copy Client ID"
+            content={app.client_id}
+            shortcut={{ modifiers: ["cmd"], key: "." }}
+          />
+          <Action.OpenInBrowser
+            title="Open in Auth0 Dashboard"
+            url={dashboardUrl}
+            shortcut={{ modifiers: ["cmd"], key: "o" }}
+          />
+          <Action.CopyToClipboard
+            title="Copy App JSON"
+            content={JSON.stringify(app, null, 2)}
+            shortcut={{ modifiers: ["cmd", "shift"], key: "c" }}
+          />
         </ActionPanel>
       }
     />

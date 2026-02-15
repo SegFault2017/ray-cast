@@ -50,9 +50,21 @@ ${scopesSection}`;
             icon={Icon.Key}
             target={<ManagePermissions api={api} tenant={tenant} />}
           />
-          <Action.CopyToClipboard title="Copy Identifier" content={api.identifier} />
-          <Action.OpenInBrowser title="Open in Auth0 Dashboard" url={dashboardUrl} />
-          <Action.CopyToClipboard title="Copy API JSON" content={JSON.stringify(api, null, 2)} />
+          <Action.CopyToClipboard
+            title="Copy Identifier"
+            content={api.identifier}
+            shortcut={{ modifiers: ["cmd"], key: "." }}
+          />
+          <Action.OpenInBrowser
+            title="Open in Auth0 Dashboard"
+            url={dashboardUrl}
+            shortcut={{ modifiers: ["cmd"], key: "o" }}
+          />
+          <Action.CopyToClipboard
+            title="Copy API JSON"
+            content={JSON.stringify(api, null, 2)}
+            shortcut={{ modifiers: ["cmd", "shift"], key: "c" }}
+          />
         </ActionPanel>
       }
     />

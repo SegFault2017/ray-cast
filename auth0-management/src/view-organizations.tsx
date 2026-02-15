@@ -1,10 +1,11 @@
 import { List, ActionPanel, Action, showToast, Toast, Icon } from "@raycast/api";
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useCachedState } from "@raycast/utils";
-import { listOrganizations } from "./utils/auth0-client";
+import { listOrganizations, getAuth0ErrorMessage } from "./utils/auth0-client";
 import { isTenantConfigured } from "./utils/tenant-storage";
 import { useActiveTenant } from "./utils/use-active-tenant";
 import { Organization } from "./utils/types";
+import { parseTenantDomain } from "./utils/formatting";
 import OrganizationDetail from "./components/OrganizationDetail";
 import TenantDropdown from "./components/TenantDropdown";
 
@@ -16,10 +17,7 @@ export default function ViewOrganizations() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const prevTenantId = useRef(tenantId);
-  const domain = tenant?.domain;
-  const domainParts = domain?.split(".") ?? [];
-  const tenantSlug = domainParts[0];
-  const region = domainParts.length >= 4 ? domainParts[1] : "us";
+  const { tenantSlug, region } = parseTenantDomain(tenant?.domain ?? "");
 
   const fetchOrganizations = useCallback(async () => {
     if (!tenant) return;
@@ -36,7 +34,7 @@ export default function ViewOrganizations() {
       const results = await listOrganizations(tenant);
       setOrganizations(results);
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to fetch organizations";
+      const message = getAuth0ErrorMessage(err, "read:organizations");
       setError(message);
       showToast({
         style: Toast.Style.Failure,
@@ -58,11 +56,15 @@ export default function ViewOrganizations() {
     fetchOrganizations();
   }, [fetchOrganizations, tenantId, tenant]);
 
-  const filtered = organizations.filter((org) => {
-    if (!searchText) return true;
-    const term = searchText.toLowerCase();
-    return org.name.toLowerCase().includes(term) || (org.display_name?.toLowerCase().includes(term) ?? false);
-  });
+  const filtered = useMemo(
+    () =>
+      organizations.filter((org) => {
+        if (!searchText) return true;
+        const term = searchText.toLowerCase();
+        return org.name.toLowerCase().includes(term) || (org.display_name?.toLowerCase().includes(term) ?? false);
+      }),
+    [organizations, searchText],
+  );
 
   if (error && !organizations.length) {
     return (

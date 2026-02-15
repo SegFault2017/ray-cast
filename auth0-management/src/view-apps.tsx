@@ -1,11 +1,11 @@
 import { List, ActionPanel, Action, showToast, Toast, Icon } from "@raycast/api";
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useCachedState } from "@raycast/utils";
-import { listApps } from "./utils/auth0-client";
+import { listApps, getAuth0ErrorMessage } from "./utils/auth0-client";
 import { isTenantConfigured } from "./utils/tenant-storage";
 import { useActiveTenant } from "./utils/use-active-tenant";
 import { Auth0App } from "./utils/types";
-import { APP_TYPE_LABELS } from "./utils/formatting";
+import { APP_TYPE_LABELS, parseTenantDomain } from "./utils/formatting";
 import AppDetail from "./components/AppDetail";
 import TenantDropdown from "./components/TenantDropdown";
 
@@ -17,9 +17,7 @@ export default function ViewApps() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const prevTenantId = useRef(tenantId);
-  const domainParts = tenant?.domain.split(".") ?? [];
-  const tenantSlug = domainParts[0];
-  const region = domainParts.length >= 4 ? domainParts[1] : "us";
+  const { tenantSlug, region } = parseTenantDomain(tenant?.domain ?? "");
 
   const fetchApps = useCallback(async () => {
     if (!tenant) return;
@@ -36,7 +34,7 @@ export default function ViewApps() {
       const results = await listApps(tenant);
       setApps(results);
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to fetch applications";
+      const message = getAuth0ErrorMessage(err, "read:clients");
       setError(message);
       showToast({
         style: Toast.Style.Failure,
@@ -58,15 +56,19 @@ export default function ViewApps() {
     fetchApps();
   }, [fetchApps, tenantId, tenant]);
 
-  const filtered = apps.filter((app) => {
-    if (!searchText) return true;
-    const term = searchText.toLowerCase();
-    return (
-      (app.name?.toLowerCase().includes(term) ?? false) ||
-      (app.app_type?.toLowerCase().includes(term) ?? false) ||
-      app.client_id.toLowerCase().includes(term)
-    );
-  });
+  const filtered = useMemo(
+    () =>
+      apps.filter((app) => {
+        if (!searchText) return true;
+        const term = searchText.toLowerCase();
+        return (
+          (app.name?.toLowerCase().includes(term) ?? false) ||
+          (app.app_type?.toLowerCase().includes(term) ?? false) ||
+          app.client_id.toLowerCase().includes(term)
+        );
+      }),
+    [apps, searchText],
+  );
 
   if (error && !apps.length) {
     return (

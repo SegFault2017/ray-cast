@@ -5,7 +5,7 @@ import { getBlockedUsers, unblockUser, getAuth0ErrorMessage } from "./utils/auth
 import { isTenantConfigured } from "./utils/tenant-storage";
 import { useActiveTenant } from "./utils/use-active-tenant";
 import { User } from "./utils/types";
-import { formatDate } from "./utils/formatting";
+import { formatDate, buildUserDashboardUrl } from "./utils/formatting";
 import UserDetail from "./components/UserDetail";
 import TenantDropdown from "./components/TenantDropdown";
 
@@ -16,10 +16,6 @@ export default function ViewBlockedUsers() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const prevTenantId = useRef(tenantId);
-  const domain = tenant?.domain;
-  const domainParts = domain?.split(".") ?? [];
-  const tenantSlug = domainParts[0];
-  const region = domainParts.length >= 4 ? domainParts[1] : "us";
 
   const fetchBlockedUsers = useCallback(async () => {
     if (!tenant) return;
@@ -127,6 +123,7 @@ export default function ViewBlockedUsers() {
                 title="Unblock User"
                 icon={Icon.LockUnlocked}
                 style={Action.Style.Destructive}
+                shortcut={{ modifiers: ["cmd", "shift"], key: "u" }}
                 onAction={() => handleUnblock(user)}
               />
               <Action.CopyToClipboard
@@ -142,7 +139,7 @@ export default function ViewBlockedUsers() {
               {tenant?.domain && (
                 <Action.OpenInBrowser
                   title="Open in Auth0 Dashboard"
-                  url={`https://manage.auth0.com/dashboard/${region}/${tenantSlug}/users/${Buffer.from(encodeURIComponent(user.user_id)).toString("base64")}`}
+                  url={buildUserDashboardUrl(tenant.domain, user.user_id)}
                   shortcut={{ modifiers: ["cmd"], key: "o" }}
                 />
               )}

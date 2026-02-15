@@ -194,6 +194,30 @@ export async function getResourceServer(config: TenantConfig, id: string): Promi
   return response as unknown as ResourceServer;
 }
 
+/** List connections for the tenant using checkpoint pagination. */
+export async function listConnections(
+  config: TenantConfig,
+): Promise<Array<{ id: string; name: string; strategy: string }>> {
+  const client = getClient(config);
+  const response = await client.connections.list({ take: 100 });
+  return response.data as unknown as Array<{ id: string; name: string; strategy: string }>;
+}
+
+/** Create a new Auth0 user on the given connection. */
+export async function createUser(
+  config: TenantConfig,
+  data: { email: string; password: string; connection: string; name?: string },
+): Promise<User> {
+  const client = getClient(config);
+  const response = await client.users.create({
+    email: data.email,
+    password: data.password,
+    connection: data.connection,
+    ...(data.name && { name: data.name }),
+  });
+  return response as unknown as User;
+}
+
 /** Replace all scopes on an Auth0 API (resource server). */
 export async function updateResourceServerScopes(
   config: TenantConfig,

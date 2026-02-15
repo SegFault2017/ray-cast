@@ -14,7 +14,6 @@ interface PermissionFormProps {
 /** Form for adding or editing a scope (permission) on an Auth0 API. */
 export default function PermissionForm({ scope, onSubmit }: PermissionFormProps) {
   const { pop } = useNavigation();
-  const isEditing = !!scope;
 
   const { handleSubmit, itemProps } = useForm<PermissionFormValues>({
     onSubmit: async (values) => {
@@ -35,10 +34,10 @@ export default function PermissionForm({ scope, onSubmit }: PermissionFormProps)
 
   return (
     <Form
-      navigationTitle={isEditing ? `Edit ${scope.value}` : "Add Permission"}
+      navigationTitle={scope ? `Edit ${scope.value}` : "Add Permission"}
       actions={
         <ActionPanel>
-          <Action.SubmitForm title={isEditing ? "Update Permission" : "Add Permission"} onSubmit={handleSubmit} />
+          <Action.SubmitForm title={scope ? "Update Permission" : "Add Permission"} onSubmit={handleSubmit} />
         </ActionPanel>
       }
     >
@@ -47,8 +46,8 @@ export default function PermissionForm({ scope, onSubmit }: PermissionFormProps)
         placeholder="e.g. read:users"
         info="The scope identifier (e.g. read:users)"
         {...itemProps.value}
-        value={isEditing ? scope.value : itemProps.value.value}
-        onChange={isEditing ? undefined : itemProps.value.onChange}
+        value={scope ? scope.value : itemProps.value.value}
+        onChange={scope ? undefined : itemProps.value.onChange}
       />
       <Form.TextField title="Description" placeholder="e.g. Read user profiles" {...itemProps.description} />
     </Form>

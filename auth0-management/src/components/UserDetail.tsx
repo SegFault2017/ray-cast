@@ -65,10 +65,26 @@ ${orgsSection}
       actions={
         <ActionPanel>
           <Action.Push title="View Logs" icon={Icon.List} target={<UserLogsDetail user={user} tenant={tenant} />} />
-          <Action.CopyToClipboard title="Copy User ID" content={user.user_id} />
-          <Action.CopyToClipboard title="Copy Email" content={user.email} />
-          <Action.OpenInBrowser title="Open in Auth0 Dashboard" url={dashboardUrl} />
-          <Action.CopyToClipboard title="Copy User JSON" content={JSON.stringify(user, null, 2)} />
+          <Action.CopyToClipboard
+            title="Copy User ID"
+            content={user.user_id}
+            shortcut={{ modifiers: ["cmd"], key: "." }}
+          />
+          <Action.CopyToClipboard
+            title="Copy Email"
+            content={user.email}
+            shortcut={{ modifiers: ["cmd", "shift"], key: "." }}
+          />
+          <Action.OpenInBrowser
+            title="Open in Auth0 Dashboard"
+            url={dashboardUrl}
+            shortcut={{ modifiers: ["cmd"], key: "o" }}
+          />
+          <Action.CopyToClipboard
+            title="Copy User JSON"
+            content={JSON.stringify(user, null, 2)}
+            shortcut={{ modifiers: ["cmd", "shift"], key: "c" }}
+          />
         </ActionPanel>
       }
     />
