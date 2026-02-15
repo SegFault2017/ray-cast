@@ -1,5 +1,15 @@
 import { ManagementClient, ManagementError } from "auth0";
-import { Auth0App, LogEntry, Organization, ResourceServer, Session, TenantConfig, User, UserGrant } from "./types";
+import {
+  Auth0App,
+  Connection,
+  LogEntry,
+  Organization,
+  ResourceServer,
+  Session,
+  TenantConfig,
+  User,
+  UserGrant,
+} from "./types";
 
 /** Cache of ManagementClient instances keyed by domain (SDK handles token management). */
 const clientCache: Map<string, ManagementClient> = new Map();
@@ -208,12 +218,54 @@ export async function getResourceServer(config: TenantConfig, id: string): Promi
 }
 
 /** List connections for the tenant using checkpoint pagination. */
-export async function listConnections(
-  config: TenantConfig,
-): Promise<Array<{ id: string; name: string; strategy: string }>> {
+export async function listConnections(config: TenantConfig): Promise<Connection[]> {
   const client = getClient(config);
   const response = await client.connections.list({ take: 100 });
-  return response.data as unknown as Array<{ id: string; name: string; strategy: string }>;
+  return response.data as unknown as Connection[];
+}
+
+/** Create a new Auth0 database connection. */
+export async function createConnection(
+  config: TenantConfig,
+  data: {
+    name: string;
+    display_name?: string;
+    identifier?: string;
+    authMethod: string;
+    customDatabase: boolean;
+    enableSignup: boolean;
+    domainConnection: boolean;
+  },
+): Promise<Connection> {
+  const client = getClient(config);
+
+  const authMethods: Record<string, unknown> = {};
+  if (data.authMethod === "password" || data.authMethod === "both") {
+    authMethods.password = { enabled: true };
+  }
+  if (data.authMethod === "passkey" || data.authMethod === "both") {
+    authMethods.passkey = { enabled: true };
+  }
+  if (data.authMethod === "password") {
+    authMethods.passkey = { enabled: false };
+  }
+  if (data.authMethod === "passkey") {
+    authMethods.password = { enabled: false };
+  }
+
+  const response = await client.connections.create({
+    name: data.name,
+    strategy: "auth0",
+    ...(data.display_name && { display_name: data.display_name }),
+    ...(data.domainConnection && { is_domain_connection: true }),
+    ...(data.identifier && { metadata: { identifier: data.identifier } }),
+    options: {
+      authentication_methods: authMethods,
+      enabledDatabaseCustomization: data.customDatabase,
+      disable_signup: !data.enableSignup,
+    },
+  });
+  return response as unknown as Connection;
 }
 
 /** Create a new Auth0 user on the given connection. */

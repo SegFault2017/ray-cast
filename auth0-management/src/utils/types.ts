@@ -123,6 +123,20 @@ export interface ResourceServer {
   enforce_policies?: boolean;
 }
 
+/** An Auth0 connection (database, social, enterprise, etc.). */
+export interface Connection {
+  id: string;
+  name: string;
+  display_name?: string;
+  strategy: string;
+  enabled_clients?: string[];
+  is_domain_connection?: boolean;
+  realms?: string[];
+  metadata?: Record<string, string>;
+  created_at?: string;
+  updated_at?: string;
+}
+
 /** An Auth0 application (client) with its configuration and allowed URLs. */
 export interface Auth0App {
   client_id: string;

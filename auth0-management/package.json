@@ -55,6 +55,13 @@
       "subtitle": "Auth0",
       "description": "Browse Auth0 APIs (resource servers) and their scopes",
       "mode": "view"
+    },
+    {
+      "name": "view-connections",
+      "title": "View Databases",
+      "subtitle": "Auth0",
+      "description": "Browse Auth0 database connections and create new ones",
+      "mode": "view"
     }
   ],
   "dependencies": {
