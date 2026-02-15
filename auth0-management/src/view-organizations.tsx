@@ -1,12 +1,18 @@
 import { List, ActionPanel, Action, showToast, Toast, Icon } from "@raycast/api";
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useCachedState } from "@raycast/utils";
-import { listOrganizations, getAuth0ErrorMessage } from "./utils/auth0-client";
+import {
+  listOrganizations,
+  createOrganization,
+  getOrganizationMembers,
+  getAuth0ErrorMessage,
+} from "./utils/auth0-client";
 import { isTenantConfigured } from "./utils/tenant-storage";
 import { useActiveTenant } from "./utils/use-active-tenant";
 import { Organization } from "./utils/types";
 import { parseTenantDomain } from "./utils/formatting";
 import OrganizationDetail from "./components/OrganizationDetail";
+import CreateOrgForm from "./components/CreateOrgForm";
 import TenantDropdown from "./components/TenantDropdown";
 
 /** Raycast command: browse Auth0 organizations with client-side filtering and tenant switching. */
@@ -16,6 +22,7 @@ export default function ViewOrganizations() {
   const [organizations, setOrganizations] = useCachedState<Organization[]>(`organizations-${tenantId}`, []);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [memberCounts, setMemberCounts] = useState<Record<string, number>>({});
   const prevTenantId = useRef(tenantId);
   const { tenantSlug, region } = parseTenantDomain(tenant?.domain ?? "");
 
@@ -46,6 +53,28 @@ export default function ViewOrganizations() {
     }
   }, [tenant]);
 
+  const handleCreateOrg = useCallback(
+    async (values: { name: string; display_name?: string }) => {
+      if (!tenant) return;
+      try {
+        await createOrganization(tenant, values);
+        showToast({
+          style: Toast.Style.Success,
+          title: "Organization Created",
+          message: values.display_name || values.name,
+        });
+        fetchOrganizations();
+      } catch (err) {
+        showToast({
+          style: Toast.Style.Failure,
+          title: "Failed to Create Organization",
+          message: getAuth0ErrorMessage(err, "create:organizations"),
+        });
+      }
+    },
+    [tenant, fetchOrganizations],
+  );
+
   useEffect(() => {
     if (prevTenantId.current !== tenantId) {
       setOrganizations([]);
@@ -55,6 +84,27 @@ export default function ViewOrganizations() {
     if (!tenant) return;
     fetchOrganizations();
   }, [fetchOrganizations, tenantId, tenant]);
+
+  useEffect(() => {
+    if (!tenant || organizations.length === 0) {
+      setMemberCounts({});
+      return;
+    }
+    let cancelled = false;
+    Promise.allSettled(organizations.map((org) => getOrganizationMembers(tenant, org.id))).then((results) => {
+      if (cancelled) return;
+      const counts: Record<string, number> = {};
+      results.forEach((result, i) => {
+        if (result.status === "fulfilled") {
+          counts[organizations[i].id] = result.value.length;
+        }
+      });
+      setMemberCounts(counts);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [organizations, tenant]);
 
   const filtered = useMemo(
     () =>
@@ -99,6 +149,15 @@ export default function ViewOrganizations() {
           icon={Icon.Building}
           title="No Organizations"
           description={searchText ? "No organizations match your filter" : "No organizations found for this tenant"}
+          actions={
+            <ActionPanel>
+              <Action.Push
+                title="Create Organization"
+                icon={Icon.Plus}
+                target={<CreateOrgForm tenant={tenant!} onSubmit={handleCreateOrg} />}
+              />
+            </ActionPanel>
+          }
         />
       )}
       {filtered.map((org) => (
@@ -107,7 +166,11 @@ export default function ViewOrganizations() {
           icon={org.branding?.logo_url ? { source: org.branding.logo_url } : Icon.Building}
           title={org.display_name || org.name}
           subtitle={org.name}
-          accessories={[tenant ? { tag: { value: tenant.environment, color: tenant.color } } : {}]}
+          accessories={[
+            memberCounts[org.id] !== undefined
+              ? { text: `${memberCounts[org.id]} ${memberCounts[org.id] === 1 ? "member" : "members"}` }
+              : {},
+          ]}
           actions={
             <ActionPanel>
               <Action.Push
@@ -137,6 +200,12 @@ export default function ViewOrganizations() {
                 icon={Icon.ArrowClockwise}
                 shortcut={{ modifiers: ["cmd"], key: "r" }}
                 onAction={() => fetchOrganizations()}
+              />
+              <Action.Push
+                title="Create Organization"
+                icon={Icon.Plus}
+                target={<CreateOrgForm tenant={tenant!} onSubmit={handleCreateOrg} />}
+                shortcut={{ modifiers: ["cmd"], key: "n" }}
               />
             </ActionPanel>
           }

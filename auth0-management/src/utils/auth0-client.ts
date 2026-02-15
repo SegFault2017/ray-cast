@@ -89,6 +89,19 @@ export async function getOrganizationMembers(config: TenantConfig, orgId: string
   return response.data as unknown as User[];
 }
 
+/** Create a new Auth0 organization. */
+export async function createOrganization(
+  config: TenantConfig,
+  data: { name: string; display_name?: string },
+): Promise<Organization> {
+  const client = getClient(config);
+  const response = await client.organizations.create({
+    name: data.name,
+    ...(data.display_name && { display_name: data.display_name }),
+  });
+  return response as unknown as Organization;
+}
+
 /** Add one or more users as members of an organization. */
 export async function addMembersToOrganization(config: TenantConfig, orgId: string, userIds: string[]): Promise<void> {
   const client = getClient(config);
